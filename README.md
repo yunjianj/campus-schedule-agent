@@ -1,149 +1,107 @@
 # 校园日程智能体
 
-粘贴一段通知、发一张课表截图，或随口说一句安排，它会把内容拆成多条：
-**有具体时间的进日程表，没有时间的进任务栏**；之后能查冲突、改、删、做未来规划、做日/周/月复盘。
+Dify Chatflow 校园日程助手，使用 Supabase 保存日程、任务、复盘、用户偏好，以及独立的持久化上下文文档。
 
-运行在 Dify Cloud（Chatflow），数据存在 Supabase，前端是配套的「心流日程」周视图网站。
+当前版本 **v37 · 稳定删除确认版**。导入包：[校园日程智能体-v37.ifpkg](dist/校园日程智能体-v37.ifpkg)。历史应用包保存在 `archive/ifpkg/`，旧提示词材料保存在 `archive/docs/`。
 
----
+## 部署与升级
 
-## 目录结构
+1. 首次部署执行 [基础建表 SQL](docs/schema.sql)；已有 v35 基础表可跳过。
+2. 首次启用持久记忆必须执行 [v36 上下文迁移](docs/context-memory.sql)，新增记忆文档、逐轮日志和 RPC；**已部署 v36 时，升级 v37 不需要重跑 SQL**。
+3. 启用 Supabase 的 `pg_cron`，执行 [每日清理 SQL](docs/context-memory-cron.sql)。迁移前已启用 Cron 的项目会自动注册任务。没有 Cron 时仍会在新请求进入时清理；无请求时的自动清理依赖每日任务。
+4. 在 Dify 导入 `dist/校园日程智能体-v37.ifpkg`，配置环境变量：
 
-```
-campus-schedule-agent/
-├─ dist/                     可直接导入 Dify 的应用包（当前 v31）
-├─ docs/                     提示词、建表 SQL、提示词优化材料
-├─ diagrams/                 流程图（录入/删除、复盘、总览）
-├─ scripts/                  生成流程图的 Python 脚本
-├─ code/                     代码节点源码（校验、冲突检测）
-├─ tests/                    本地回归测试
-├─ archive/                  历史版本与诊断包（不参与运行）
-└─ README.md
-```
+   | 变量 | 值 |
+   |---|---|
+   | `BASE_URL` | Supabase 项目根地址，不含 `/rest/v1`，末尾不带 `/` |
+   | `SUPABASE_KEY` | Supabase publishable key，仅供 HTTP 节点使用 |
+   | `USER_ID` | `demo`，本版仍按单用户演示设计 |
 
----
+5. 核对模型，预览验收后发布：
 
-## 快速开始
+   | 节点 | 模型 | 历史来源 |
+   |---|---|---|
+   | **选择相关上下文（新增）** | `deepseek-flash` | 文档索引 |
+   | 意图识别 | `deepseek-flash` | 文档召回 + 当前状态 + 近期文本 |
+   | 抽取日程 | `deepseek-v4-flash-vision-exp`，开启视觉 | 当前图片、草稿、最近3轮文字 |
+   | 抽取任务 | `deepseek-flash` | 内置 Memory 3轮 |
+   | 抽取规划目标 | `deepseek-flash` | 待确认方案、画像、Memory 6轮 |
+   | AI 回复润色 | `deepseek-v4-flash` | 本轮结果，额外生成核心摘要和话题 |
+   | 规划建议输出、生成复盘报告 | `deepseek-v4-pro` | 代码结果及所需历史，无内置 Memory |
 
-**1. 导入 Dify**
+模型名称沿用原供应商配置，需要在工作区映射到实际可用模型。应用包未携带部署地址或 API Key。
 
-工作区 → 导入 DSL → 选 `dist/校园日程智能体-v31.ifpkg`。
+## v37 删除确认修复
 
-**2. 导入后核对模型**
+修复“删除第一条”出现确认提示后，再回“确认”却提示没有匹配记录的问题。确认这一轮忽略模型重新生成的标题、日期和时间，只按上一轮已展示快照中的 ID 重新查库；删除过滤器也从核对后的 ID 生成。
 
-| 节点 | 模型 |
-|---|---|
-| 意图识别 | `deepseek-flash` |
-| 抽取日程 | `deepseek-v4-flash-vision-exp`（需要视觉） |
-| 抽取任务 / 抽取规划目标 | `deepseek-flash` |
-| 生成安排说明 | `deepseek-v4-flash` |
-| 生成复盘报告 / 规划建议输出 | `deepseek-v4-pro` |
+支持“确认”“确认删除”“好的，确认删除”等表达。记录变化时展示最新信息并重新确认；已不存在时说明未再次删除。取消后或没有当前待确认操作时，不从历史记录执行删除。润色不能在成功回复中新增“没有待处理记录”的矛盾结论。
 
-**3. 设置异常处理**
+已有 v36 数据库和 Cron 配置可继续使用，只需导入并发布 v37。
 
-「保存复盘」节点 → 异常处理 → **默认值**（存库失败也不影响回复）。
+## v36 的记忆机制
 
-**4. 发布**
+每次输入先记录原文和时间、读取文档；按时间与话题选择相关资料，完成操作后保存最终回复、核心摘要、记录 ID 和实际结果。原文不再只保留6轮，跨聊天可以按明确来源找回历史。
 
-**5. 建表**
+原始列表、最近操作焦点、待澄清候选分别保存。因此下面的操作会分别作用于原列表的第二条、第一条：
 
-Supabase SQL Editor 里执行 `docs/schema.sql`（三张表：`schedules`、`tasks`、`reviews`）。
-
-**6. 配环境变量**（Dify 应用内）
-
-| 变量 | 说明 |
-|---|---|
-| `BASE_URL` | Supabase 项目 URL |
-| `USER_ID` | 演示用固定 `demo` |
-| `SUPABASE_KEY` | publishable key |
-
----
-
-## 能力概览
-
-意图分 10 条链路，入口只有一个对话框：
-
-| 意图 | 行为 |
-|---|---|
-| `add` | 批量抽取 → 分流 → 查冲突 → 直接保存，回复清单 |
-| `task` | 记一条待办，进任务栏 |
-| `delete` | 定位（标题 + 日期 + 时间）→ 二次确认 → 删除 → 核对行数 |
-| `update` | 定位唯一命中 → PATCH 修改 |
-| `query` | 用全局窗口数据回答某天/某周的安排 |
-| `plan` | 抽目标 → 算空档 → 排时间块 → 给建议 → 问确认 |
-| `plan_confirm` | 确认后同时写日程和任务 |
-| `review` | 两轮复盘的第一轮：统计 + 已完成/未完成清单 + 提问 |
-| `review_feedback` | 第二轮：生成报告 → 存库 → 回复 |
-| `other` | 兜底引导 |
-
----
-
-## 关键设计
-
-**批量抽取**
-一条通知里有几个安排就出几个 `item`；课表截图按行拆成多门课。
-
-**日程 vs 任务（代码判断，不交给模型）**
-有开始时间 → `schedules`；只有日期或只有截止 → `tasks`；标题都没抽到才追问。
-
-**冲突不拦截**
-和已有日程撞了也照常保存，只在回复里提示“与某条冲突”，由你决定删还是改。
-
-**删除有上下文**
-找到多条时记住候选，下一句按日期/时间匹配（`11.3`、`2026-11-03`、`15:00` 都认）；
-完全相同的重复记录会一并删除；删完用 `return=representation` 核对真实删除行数，不会出现“说删了其实没删”。
-
-**复盘两轮**
-第一轮先列出「已完成 / 未完成」清单，只问未完成的原因、最有成就感的事、可沉淀的经验；
-第二轮生成报告并写入 `reviews` 表，下次复盘会带上最近 3 次做对比。
-
-**规划产出两样**
-每个目标建一条任务（进任务栏），同时把目标切成时间块写进日程（每块 ≤2 小时、每天 ≤2 块、避开已有安排）。
-
-**图片输入**
-带文件时跳过意图识别，直接进抽取节点（视觉模型），不需要额外打字说明。
-
----
-
-## 数据模型
-
-| 表 | 关键字段 | 说明 |
-|---|---|---|
-| `schedules` | `title` `event_date` `start_time` `end_time` `location` `category` `status` `source` `manual_override` | 日程；`status=done` 表示完成，`manual_override` 区分手动勾选与到点自动完成 |
-| `tasks` | `title` `task_date` `done` | 任务栏 |
-| `reviews` | `period` `range_start` `range_end` `report` `stats` | 复盘报告存档 |
-
----
-
-## 已知限制
-
-- 意图识别是文本模型，所以纯图片走的是「有文件就直通抽取」的旁路，而不是让意图节点读图。
-- 空档按 08:00–22:00 计算，块长 60–120 分钟，每天最多 2 块——排期是贪心的，不保证全局最优。
-- 冲突检测只看前后 7 天窗口。
-- 单用户演示（`user_id=demo`，RLS 全开），正式使用需要接入登录与行级权限。
-
----
-
-## 开发提示
-
-- DSL 源文件（`app.yaml`）与打包、校验脚本在上级目录 `../_ifpkg_extract`，不纳入本仓库。
-- 重新生成流程图（在 workspace 根目录执行）：
-
-```powershell
-python campus-schedule-agent/scripts/draw_workflow.py
-python campus-schedule-agent/scripts/draw_review_flow.py
-python campus-schedule-agent/scripts/draw_create_delete.py
+```text
+我这周有什么安排？
+把第二条的位置改为主楼会议室
+再把第一条删除
+确认
 ```
 
-- 本地跑代码节点测试：
+单条修改不会覆盖原始列表；删除不会重新编号。多张历史表匹配时可说“第二张”继续原请求，新聊天不会自动继承旧的执行确认。
 
-```powershell
-$env:PYTHONIOENCODING="utf-8"
-python campus-schedule-agent/tests/test_code_nodes.py
+```text
+查看上下文文档
+查看昨天的对话原文
+删除昨天那张表的第一条
+忽略之前的上下文
 ```
 
----
+默认自动删除 **90天未实际使用**的对话原文、回复、摘要与列表快照；当前未完成操作的来源列表在最近活动7天内暂受保护。业务日程、待办、复盘和用户画像不参与删除。保留期可在 `context_documents.retention_days` 配置，完整策略见 [上下文配置说明](docs/context-configuration.md)。
 
-## 版本
+## 功能与规则
 
-当前 **v31**。历史版本、诊断包都放在 `archive/`，仅作追溯，不参与运行。
+- 文字通知、课表截图批量录入；日程缺关键信息时暂存草稿追问，缺结束时间时明确按60分钟估算。
+- 查询按日期读取日程与任务，编号清单与后续引用一致；位置、标题、日期和时间可修改，删除需要确认。
+- 规划由代码执行长期/临时限制，排除过去时间，新时间块立即占用；确认前重新查冲突，事务同时保存日程与任务。
+- 复盘包括日程与任务栏，区分人工确认完成和按时间默认完成；累计反馈后说“生成报告”，保存报告、统计和建议摘要。
+- 所有分支统一经过 AI 开场、收尾润色；核心清单、操作结果与确认要求保留。
+- 日程、用户画像仍以业务数据库为事实来源，历史对话只能辅助定位，不证明记录仍存在。
+
+## 目录
+
+```text
+workflow/          当前工作流源码与提示词
+code/              工作流运行逻辑及旧版独立示例
+scripts/           应用包构建与历史流程图生成脚本
+dist/              当前可导入应用包（v37）
+docs/              当前部署说明、SQL迁移与生成的提示词文档
+tests/             工作流回归、RPC测试替身与数据库集成脚本
+archive/           历史应用包、旧提示词和诊断资料
+diagrams/          历史流程图
+```
+
+## 开发与验证
+
+```bash
+python -m pip install -r requirements-dev.txt
+python scripts/build_workflow.py
+PYTHONDONTWRITEBYTECODE=1 python -m unittest discover -s tests -p 'test_*workflow.py'
+PYTHONDONTWRITEBYTECODE=1 python tests/test_code_nodes.py
+```
+
+- `workflow/app.yaml`：生成并纳入版本管理的工作流，保留模型配置。
+- `workflow/prompts.yaml`：八个模型节点的提示词源文件。
+- `code/context_runtime.py`：实际运行代码，按每个节点的依赖嵌入 DSL。
+- `scripts/build_workflow.py`：同步 DSL、提示词文档和 v37 应用包，生成可重复的 ZIP 与 SHA-256 manifest。
+- `tests/test_context_workflow.py`、`tests/test_memory_workflow.py`：直接执行包内代码，模拟模型和 RPC；涵盖完整多轮链路与记忆清理。
+- `tests/test_business_database.sql`：日程与任务事务写入的数据库集成脚本。
+- `tests/test_memory_database.sql`：上下文存储与清理的数据库集成脚本；部署 SQL 后在测试项目执行，最后回滚测试数据。
+
+`code/validate_event.py`、`code/conflict.py` 和原21项检查是旧版独立示例；`archive/`、旧提示词优化材料、流程图为历史参考。
+
+当前仍为单用户匿名演示，无登录；不展开复杂周期课表；规划为贪心算法。索引、召回和列表尺寸有上限，超限时要求缩小范围。仓库环境没有线上凭据或 PostgreSQL 服务，尚未完成真实 Dify/Supabase/Cron 联调。
