@@ -1,0 +1,4233 @@
+app:
+  description: 面向大学生的校园日程智能体：录入、冲突检查、查询、复盘。
+  icon: 🗓️
+  icon_background: '#E0F2FE'
+  icon_type: emoji
+  mode: advanced-chat
+  name: 校园日程智能体
+  use_icon_as_answer_icon: false
+dependencies:
+- current_identifier: null
+  type: marketplace
+  value:
+    marketplace_plugin_unique_identifier: langgenius/deepseek:0.0.26@bdf47cb41e9062bba00d26625d2a795c1874011d8ce64bff738c44b5a31787ea
+    version: null
+kind: app
+site:
+  chat_color_theme: null
+  chat_color_theme_inverted: false
+  copyright: null
+  custom_disclaimer: ''
+  default_language: zh-Hans
+  description: null
+  icon: 🗓️
+  icon_background: '#E0F2FE'
+  icon_type: emoji
+  input_placeholder: null
+  privacy_policy: null
+  show_workflow_steps: true
+  title: 校园日程智能体
+  use_icon_as_answer_icon: false
+version: 0.7.0
+workflow:
+  conversation_variables:
+  - description: 正在补全的日程（数据库行 JSON）
+    id: var-draft
+    name: draft
+    selector:
+    - conversation
+    - draft
+    value: ''
+    value_type: string
+  - description: 等待用户确认的日程（数据库行 JSON）
+    id: var-pending
+    name: pending_event
+    selector:
+    - conversation
+    - pending_event
+    value: ''
+    value_type: string
+  - description: 复盘上下文（日期范围）
+    id: var-review
+    name: review_range
+    selector:
+    - conversation
+    - review_range
+    value: ''
+    value_type: string
+  - description: 待删除日程 ID
+    id: var-pending-delete
+    name: pending_delete
+    selector:
+    - conversation
+    - pending_delete
+    value: ''
+    value_type: string
+  - description: 本次保存的冲突提示（空表示无冲突）
+    id: var-conflict-note
+    name: conflict_note
+    selector:
+    - conversation
+    - conflict_note
+    value: ''
+    value_type: string
+  - description: 复盘阶段（空 / collect）
+    id: var-review-stage
+    name: review_stage
+    selector:
+    - conversation
+    - review_stage
+    value: ''
+    value_type: string
+  - description: 规划状态（空 / awaiting）
+    id: var-plan-stage
+    name: plan_stage
+    selector:
+    - conversation
+    - plan_stage
+    value: ''
+    value_type: string
+  - description: 待写入的规划（blocks + tasks）
+    id: var-pending-plan
+    name: pending_plan
+    selector:
+    - conversation
+    - pending_plan
+    value: ''
+    value_type: string
+  - description: 删除流程状态（空 / confirm / clarify）
+    id: var-delete-stage
+    name: delete_stage
+    selector:
+    - conversation
+    - delete_stage
+    value: ''
+    value_type: string
+  - description: 删除候选列表
+    id: var-delete-candidates
+    name: delete_candidates
+    selector:
+    - conversation
+    - delete_candidates
+    value: ''
+    value_type: string
+  - description: 待删除记录的 id 过滤器
+    id: var-pending-delete-filter
+    name: pending_delete_filter
+    selector:
+    - conversation
+    - pending_delete_filter
+    value: ''
+    value_type: string
+  environment_variables:
+  - description: 网站接口根地址，导入后必须改
+    id: env-base
+    name: BASE_URL
+    selector:
+    - env
+    - BASE_URL
+    value: https://cfqneqilfjsxwbzmtjan.supabase.co/rest/v1
+    value_type: string
+  - description: 用户标识，单用户演示固定 demo
+    id: env-user
+    name: USER_ID
+    selector:
+    - env
+    - USER_ID
+    value: demo
+    value_type: string
+  - description: ''
+    id: 55993cdd-6ea4-4062-bd1b-380958cc98e3
+    name: SUPABASE_KEY
+    selector:
+    - env
+    - SUPABASE_KEY
+    value: sb_publishable_KM0WOynrv6ds56zbjClqcw_aRWllsvJ
+    value_type: string
+  features:
+    file_upload:
+      allowed_file_extensions: []
+      allowed_file_types:
+      - image
+      allowed_file_upload_methods:
+      - local_file
+      - remote_url
+      enabled: true
+      fileUploadConfig:
+        attachment_image_file_size_limit: 2
+        audio_file_size_limit: 50
+        batch_count_limit: 5
+        file_size_limit: 15
+        file_upload_limit: 50
+        image_file_batch_limit: 10
+        image_file_size_limit: 10
+        knowledge_file_size_limit: 15
+        single_chunk_attachment_limit: 10
+        skill_file_size_limit: 50
+        video_file_size_limit: 100
+        workflow_file_upload_limit: 10
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+      number_limits: 3
+    opening_statement: 你好，我是校园日程助手。可以直接粘贴校园通知，或说“明天下午三点和导师开会”。
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: false
+    speech_to_text:
+      enabled: false
+    suggested_questions:
+    - 明天下午三点和导师开会，教三201
+    - 我这周三有什么安排
+    - 帮我复盘一下这周
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: start
+        targetType: code
+      id: e-start-now
+      source: start
+      sourceHandle: source
+      target: now
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: llm
+        targetType: code
+      id: e-intent-parse
+      source: intent
+      sourceHandle: source
+      target: intent_parse
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: code
+        targetType: if-else
+      id: e-parse-branch
+      selected: false
+      source: intent_parse
+      sourceHandle: source
+      target: branch
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: if-else
+        targetType: llm
+      id: e-branch-add
+      selected: false
+      source: branch
+      sourceHandle: add
+      target: extract
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: if-else
+        targetType: http-request
+      id: e-branch-confirm
+      selected: false
+      source: branch
+      sourceHandle: confirm
+      target: post
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: if-else
+        targetType: http-request
+      id: e-branch-query
+      selected: false
+      source: branch
+      sourceHandle: query
+      target: query_reply
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: if-else
+        targetType: http-request
+      id: e-branch-review
+      selected: false
+      source: branch
+      sourceHandle: review
+      target: rev_range
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: if-else
+        targetType: answer
+      id: e-branch-other
+      selected: false
+      source: branch
+      sourceHandle: 'false'
+      target: other
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: llm
+        targetType: code
+      id: e-extract-validate
+      selected: false
+      source: extract
+      sourceHandle: source
+      target: validate
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: code
+        targetType: if-else
+      id: e-validate-ready
+      selected: false
+      source: validate
+      sourceHandle: source
+      target: ready
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: if-else
+        targetType: assigner
+      id: e-ready-no
+      selected: false
+      source: ready
+      sourceHandle: 'false'
+      target: set_ask
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: assigner
+        targetType: answer
+      id: e-set-ask
+      selected: false
+      source: set_ask
+      sourceHandle: source
+      target: ask
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: http-request
+        targetType: assigner
+      id: e-post-saved
+      selected: false
+      source: post
+      sourceHandle: source
+      target: post_tasks
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: http-request
+        targetType: assigner
+      id: e-posttasks-saved
+      source: post_tasks
+      sourceHandle: source
+      target: set_saved
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: assigner
+        targetType: http-request
+      id: e-set-saved
+      selected: false
+      source: set_saved
+      sourceHandle: source
+      target: saved
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: http-request
+        targetType: llm
+      id: e-review-reply
+      source: get_range_review
+      sourceHandle: source
+      target: get_reviews
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: code
+        targetType: code
+      id: e-now-win
+      source: now
+      sourceHandle: source
+      target: win
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: code
+        targetType: http-request
+      id: e-win-window
+      source: win
+      sourceHandle: source
+      target: window
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: http-request
+        targetType: code
+      id: e-window-snapshot
+      source: window
+      sourceHandle: source
+      target: snapshot
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: code
+        targetType: llm
+      id: e-snapshot-intent
+      source: snapshot
+      sourceHandle: source
+      target: has_files
+      targetHandle: target
+      type: custom
+      zIndex: 0
+
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: if-else
+        targetType: code
+      id: e-branch-delete
+      source: branch
+      sourceHandle: delete
+      target: locate
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: code
+        targetType: if-else
+      id: e-locate-check
+      source: locate
+      sourceHandle: source
+      target: del_check
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: if-else
+        targetType: http-request
+      id: e-del-exec
+      source: del_check
+      sourceHandle: 'true'
+      target: del_exec
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: if-else
+        targetType: assigner
+      id: e-del-ask
+      source: del_check
+      sourceHandle: 'false'
+      target: del_assign
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: assigner
+        targetType: answer
+      id: e-del-assign
+      source: del_assign
+      sourceHandle: source
+      target: del_ask
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: http-request
+        targetType: code
+      id: e-del-done
+      source: del_exec
+      sourceHandle: source
+      target: del_result
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: code
+        targetType: assigner
+      id: e-del-result
+      source: del_result
+      sourceHandle: source
+      target: del_clear
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: assigner
+        targetType: answer
+      id: e-del-clear
+      source: del_clear
+      sourceHandle: source
+      target: del_done
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: if-else
+        targetType: if-else
+      id: e-branch-plan
+      source: branch
+      sourceHandle: plan
+      target: plan_extract
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: if-else
+        targetType: code
+      id: e-branch-update
+      source: branch
+      sourceHandle: update
+      target: upd_find
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: code
+        targetType: if-else
+      id: e-upd-check
+      source: upd_find
+      sourceHandle: source
+      target: upd_check
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: if-else
+        targetType: code
+      id: e-upd-row
+      source: upd_check
+      sourceHandle: 'true'
+      target: upd_row
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: code
+        targetType: http-request
+      id: e-upd-exec
+      source: upd_row
+      sourceHandle: source
+      target: upd_exec
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: http-request
+        targetType: answer
+      id: e-upd-done
+      source: upd_exec
+      sourceHandle: source
+      target: upd_done
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: if-else
+        targetType: answer
+      id: e-upd-ask
+      source: upd_check
+      sourceHandle: 'false'
+      target: upd_ask
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: if-else
+        targetType: code
+      id: e-branch-review2
+      source: branch
+      sourceHandle: review
+      target: rev_range
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: if-else
+        targetType: code
+      id: e-branch-review-feedback
+      source: branch
+      sourceHandle: review_feedback
+      target: rev_range
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: code
+        targetType: http-request
+      id: e-rev-range-get
+      source: rev_range
+      sourceHandle: source
+      target: get_range_review
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: http-request
+        targetType: http-request
+      id: e-get-reviews
+      source: get_range_review
+      sourceHandle: source
+      target: get_reviews
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: http-request
+        targetType: code
+      id: e-reviews-stats
+      source: get_reviews
+      sourceHandle: source
+      target: rev_stats
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: code
+        targetType: if-else
+      id: e-stats-check
+      source: rev_stats
+      sourceHandle: source
+      target: rev_check
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: if-else
+        targetType: llm
+      id: e-check-report
+      source: rev_check
+      sourceHandle: 'true'
+      target: rev_report
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: if-else
+        targetType: code
+      id: e-check-ask
+      source: rev_check
+      sourceHandle: 'false'
+      target: rev_assign
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: assigner
+        targetType: answer
+      id: e-assign-ask
+      source: rev_assign
+      sourceHandle: source
+      target: rev_ask
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: llm
+        targetType: code
+      id: e-report-row
+      source: rev_report
+      sourceHandle: source
+      target: rev_row
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: code
+        targetType: http-request
+      id: e-row-save
+      source: rev_row
+      sourceHandle: source
+      target: rev_save
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: http-request
+        targetType: assigner
+      id: e-save-clear
+      source: rev_save
+      sourceHandle: source
+      target: rev_clear
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: assigner
+        targetType: answer
+      id: e-clear-answer
+      source: rev_clear
+      sourceHandle: source
+      target: rev_answer
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: llm
+        targetType: code
+      id: e-plan-slots
+      source: plan_extract
+      sourceHandle: source
+      target: plan_slots
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: code
+        targetType: llm
+      id: e-slots-reply
+      source: plan_slots
+      sourceHandle: source
+      target: plan_reply2
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: llm
+        targetType: assigner
+      id: e-reply-assign
+      source: plan_reply2
+      sourceHandle: source
+      target: plan_assign
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: assigner
+        targetType: answer
+      id: e-assign-ask2
+      source: plan_assign
+      sourceHandle: source
+      target: plan_ask
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: if-else
+        targetType: code
+      id: e-plan-confirm
+      source: branch
+      sourceHandle: plan_confirm
+      target: plan_split
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: code
+        targetType: http-request
+      id: e-split-sched
+      source: plan_split
+      sourceHandle: source
+      target: plan_post_sched
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: http-request
+        targetType: http-request
+      id: e-sched-task
+      source: plan_post_sched
+      sourceHandle: source
+      target: plan_post_task
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: http-request
+        targetType: assigner
+      id: e-task-clear
+      source: plan_post_task
+      sourceHandle: source
+      target: plan_clear
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: assigner
+        targetType: answer
+      id: e-clear-done
+      source: plan_clear
+      sourceHandle: source
+      target: plan_done
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: if-else
+        targetType: llm
+      id: e-files-extract
+      source: has_files
+      sourceHandle: 'true'
+      target: extract
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: if-else
+        targetType: llm
+      id: e-files-intent
+      source: has_files
+      sourceHandle: 'false'
+      target: intent
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: if-else
+        targetType: llm
+      id: e-branch-task
+      source: branch
+      sourceHandle: task
+      target: task_extract
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: llm
+        targetType: code
+      id: e-task-row
+      source: task_extract
+      sourceHandle: source
+      target: task_row
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: code
+        targetType: http-request
+      id: e-task-post
+      source: task_row
+      sourceHandle: source
+      target: task_post
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: http-request
+        targetType: answer
+      id: e-task-done
+      source: task_post
+      sourceHandle: source
+      target: task_done
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: if-else
+        targetType: http-request
+      id: e-ready-post
+      source: ready
+      sourceHandle: 'true'
+      target: post
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: llm
+        targetType: answer
+      id: e-query-answer
+      source: query_reply
+      sourceHandle: source
+      target: query_answer
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    nodes:
+    - data:
+        selected: false
+        title: 开始
+        type: start
+        variables: []
+      height: 71
+      id: start
+      position:
+        x: 0
+        y: 320
+      positionAbsolute:
+        x: 0
+        y: 320
+      selected: false
+      type: custom
+      width: 242
+      zIndex: 0
+    - data:
+        code: "from datetime import datetime, timezone, timedelta\n\ndef main() ->\
+          \ dict:\n    tz = timezone(timedelta(hours=8))\n    n = datetime.now(tz)\n\
+          \    return {\n        \"now\": n.isoformat(),\n        \"today\": n.strftime(\"\
+          %Y-%m-%d\"),\n        \"weekday\": \"周\" + \"一二三四五六日\"[n.weekday()],\n \
+          \   }\n"
+        code_language: python3
+        outputs:
+          now:
+            children: null
+            type: string
+          today:
+            children: null
+            type: string
+          weekday:
+            children: null
+            type: string
+        selected: false
+        title: 当前时间
+        type: code
+        variables: []
+      height: 50
+      id: now
+      position:
+        x: 280
+        y: 320
+      positionAbsolute:
+        x: 280
+        y: 320
+      selected: false
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        model:
+          completion_params:
+            temperature: 0.1
+          mode: chat
+          name: deepseek-flash
+          provider: langgenius/deepseek/deepseek
+        prompt_template:
+        - role: system
+        text: |
+            你是一个校园日程助手的意图识别器。你的任务是认真理解用户最新一条消息，判断用户想做什么，并提取必要信息。
+
+            请结合当前对话状态进行判断，不要只看用户最新一句话而忽略之前的上下文。
+
+            只输出一个合法 JSON，不要解释、不要 Markdown 代码块：
+            {"intent":"add|confirm|query|review|review_feedback|delete|plan|plan_confirm|task|update|other","start_date":"YYYY-MM-DD 或 null","end_date":"YYYY-MM-DD 或 null","target":"要操作的对象关键词或 null","new_date":"YYYY-MM-DD 或 null","new_start":"HH:MM 或 null","new_end":"HH:MM 或 null"}
+
+            判定规则：
+            1. add：用户正在描述一项想加入日程的活动、粘贴活动通知，或补充上一条日程的信息（如“16:00”“教三201”），且当前草稿不为空。
+            2. confirm：用户明确表示确认保存，如“确认”“保存”“可以”“没问题”。只有「当前草稿」不为空时才判 confirm；草稿为空时根据实际内容判断其他意图。
+            3. query：用户询问某一天或某段时间有哪些日程、安排。
+            4. review：用户希望复盘、回顾某段时间的任务完成情况。
+            5. delete：用户要求删除某条日程，如“删掉明天的会”。
+            6. plan：用户希望你帮忙规划整体安排、寻找空闲时间，如“帮我排一下这周”“哪天有空”。
+            7. update：用户要求修改已有日程的日期或时间，如“改到四点”“换到周四”。new_date/new_start/new_end 填修改后的值，没提到的填 null。
+            8. review_feedback：当「当前复盘状态」为 collect，且用户正在回答复盘问题（补充完成情况、原因、感受、下周计划）时选它。
+            9. plan_confirm：当「规划状态」为 awaiting，且用户正在确认这份排期（如“可以”“就按这个排”“开始”）时选它。
+            10. task：用户希望把一件事记成待办或任务，但不需要安排具体时间，如“记个待办”“加到任务栏”“提醒我做某事”。
+            11. other：以上情况都不符合。
+            12. 如果用户只上传了图片或截图（文字为空或只有一句话），intent 输出 add。
+
+            日期处理：
+            - 当前时间：{{#now.now#}}（{{#now.weekday#}}）
+            - 复盘、查询时需要给出 start_date 和 end_date：
+              · 今天 → 当天；近三天 → 今天往前两天到今天
+              · 这周/本周 → 本周一到本周日；上周 → 上周一到上周日
+              · 这周三/周三/下周三 → 对应那一周的该星期几（单说“周三”取最近的那个周三）
+              · 这个月/本月 → 本月 1 号到月末；上个月 → 上月 1 号到月末
+              · 用户给了具体日期或区间（如 11月1日到11月7日）→ 按他说的填
+              · 只问一天就填同一天；完全没说时间才填 null
+            - target 填用户提到的活动关键词（如“导师开会”“社团”），没有就填 null。
+
+            当前删除状态：{{#conversation.delete_stage#}}
+            如果删除状态不为空，且用户正在回答“删哪一条”（提供了日期、时间或标题），也判为 delete。
+            当前待删除的日程 ID：{{#conversation.pending_delete#}}
+            如果这个 ID 不为空，而用户只回复了“确认”“确定”“删”，请判定为 delete。
+            当前规划状态：{{#conversation.plan_stage#}}
+            当前复盘状态：{{#conversation.review_stage#}}
+            当前草稿：{{#conversation.draft#}}
+        - role: user
+          text: '{{#sys.query#}}'
+        selected: false
+        title: 意图识别
+        type: llm
+        vision:
+          enabled: false
+      id: intent
+      position:
+        x: 560
+        y: 320
+      positionAbsolute:
+        x: 560
+        y: 320
+      selected: false
+      type: custom
+      width: 241
+      zIndex: 0
+
+    - data:
+        code: |
+
+          import json
+          import re
+
+
+          def main(raw: str) -> dict:
+              text = str(raw or "")
+              start, end = text.find("{"), text.rfind("}")
+              data = {}
+              if start >= 0 and end > start:
+                  try:
+                      data = json.loads(text[start:end + 1])
+                  except Exception:
+                      data = {}
+
+              intent = str(data.get("intent") or "").strip().lower()
+              if intent not in ("add", "confirm", "query", "review", "delete", "plan", "update", "review_feedback", "plan_confirm", "task"):
+                  intent = "other"
+
+              return {
+                  "intent": intent,
+                  "start_date": data.get("start_date") or "",
+                  "end_date": data.get("end_date") or "",
+                  "target": data.get("target") or "",
+                  "new_date": data.get("new_date") or "",
+                  "new_start": data.get("new_start") or "",
+                  "new_end": data.get("new_end") or "",
+              }
+
+        code_language: python3
+        outputs:
+          end_date:
+            children: null
+            type: string
+          intent:
+            children: null
+            type: string
+          start_date:
+            children: null
+            type: string
+          new_date:
+            children: null
+            type: string
+          new_end:
+            children: null
+            type: string
+          new_start:
+            children: null
+            type: string
+          target:
+            children: null
+            type: string
+        selected: false
+        title: 解析意图
+        type: code
+        variables:
+        - value_selector:
+          - intent
+          - text
+          variable: raw
+      height: 50
+      id: intent_parse
+      position:
+        x: 840
+        y: 320
+      positionAbsolute:
+        x: 840
+        y: 320
+      selected: false
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        cases:
+        - case_id: add
+          conditions:
+          - comparison_operator: is
+            id: c-add
+            value: add
+            variable_selector:
+            - intent_parse
+            - intent
+          id: add
+          logical_operator: and
+        - case_id: confirm
+          conditions:
+          - comparison_operator: is
+            id: c-confirm
+            value: confirm
+            variable_selector:
+            - intent_parse
+            - intent
+          id: confirm
+          logical_operator: and
+        - case_id: query
+          conditions:
+          - comparison_operator: is
+            id: c-query
+            value: query
+            variable_selector:
+            - intent_parse
+            - intent
+          id: query
+          logical_operator: and
+        - case_id: review
+          conditions:
+          - comparison_operator: is
+            id: c-review
+            value: review
+            variable_selector:
+            - intent_parse
+            - intent
+          id: review
+          logical_operator: and
+        - case_id: delete
+          conditions:
+          - comparison_operator: is
+            id: c-delete
+            value: delete
+            variable_selector:
+            - intent_parse
+            - intent
+          id: delete
+          logical_operator: and
+        - case_id: plan
+          conditions:
+          - comparison_operator: is
+            id: c-plan
+            value: plan
+            variable_selector:
+            - intent_parse
+            - intent
+          id: plan
+          logical_operator: and
+        - case_id: update
+          conditions:
+          - comparison_operator: is
+            id: c-update
+            value: update
+            variable_selector:
+            - intent_parse
+            - intent
+          id: update
+          logical_operator: and
+        - case_id: review_feedback
+          conditions:
+          - comparison_operator: is
+            id: c-review-feedback
+            value: review_feedback
+            variable_selector:
+            - intent_parse
+            - intent
+          id: review_feedback
+          logical_operator: and
+        - case_id: plan_confirm
+          conditions:
+          - comparison_operator: is
+            id: c-plan-confirm
+            value: plan_confirm
+            variable_selector:
+            - intent_parse
+            - intent
+          id: plan_confirm
+          logical_operator: and
+        - case_id: task
+          conditions:
+          - comparison_operator: is
+            id: c-task
+            value: task
+            variable_selector:
+            - intent_parse
+            - intent
+          id: task
+          logical_operator: and
+        selected: false
+        title: 意图分支
+        type: if-else
+      height: 266
+      id: branch
+      position:
+        x: 1119.0361389637735
+        y: 320
+      positionAbsolute:
+        x: 1119.0361389637735
+        y: 320
+      selected: false
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        model:
+          completion_params:
+            temperature: 0.1
+          mode: chat
+          name: deepseek-v4-flash-vision-exp
+          provider: langgenius/deepseek/deepseek
+        prompt_template:
+        - role: system
+        text: |
+            你是一个细心的校园通知解析助手。你的任务是从用户发送的文字、通知或图片中，准确提取所有日程和待办任务，并与已有草稿合并。
+
+            请仔细识别通知中的活动名称、日期、时间和地点。遇到课程表图片时，要注意逐行识别，不要遗漏课程。
+
+            当前时间：{{#now.now#}}（{{#now.weekday#}}）
+            已有草稿（可能是空字符串）：{{#conversation.draft#}}
+
+            只输出 JSON：
+            {"items":[{"title":"活动名称","date":"YYYY-MM-DD 或 null","start_time":"HH:MM 或 null","end_time":"HH:MM 或 null","location":"地点或 null","category":"课程|会议|社团|讲座|比赛|个人事项|其他","kind":"event|task"}]}
+
+            规则：
+            1. 一条消息里有多个安排就输出多个 item；如果是课程表图片，按行拆成多门课。
+            2. 有明确开始时间的标 kind=event；只有日期、只有截止时间的标 kind=task。
+            3. 用户没说的字段一律 null，禁止推测。
+            4. 草稿里已有的字段，除非用户本轮明确修改，否则保留到对应 item。
+            5. 相对日期基于当前时间换算。
+            6. 只输出 JSON，不要解释。
+        - role: user
+          text: '{{#sys.query#}}'
+        selected: false
+        title: 抽取日程
+        type: llm
+        vision:
+          configs:
+            detail: high
+            variable_selector:
+            - sys
+            - files
+          enabled: true
+      height: 86
+      id: extract
+      position:
+        x: 1400
+        y: 120
+      positionAbsolute:
+        x: 1400
+        y: 120
+      selected: false
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        code: |
+
+          import json
+          import re
+          from datetime import date, datetime
+
+
+          def _date(value, today):
+              if not value:
+                  return None
+              s = str(value).strip()
+              if s in ("今天", "今日"):
+                  return today
+              if s in ("明天", "明日"):
+                  return today + __import__("datetime").timedelta(days=1)
+              m = re.fullmatch(r"(\d{4})-(\d{1,2})-(\d{1,2})", s)
+              if m:
+                  try:
+                      return date(int(m[1]), int(m[2]), int(m[3]))
+                  except Exception:
+                      return None
+              return None
+
+
+          def _time(value):
+              if not value:
+                  return None
+              s = str(value).strip().replace("：", ":")
+              m = re.fullmatch(r"(\d{1,2}):(\d{2})", s)
+              if not m:
+                  return None
+              return "%02d:%02d" % (int(m[1]), int(m[2]))
+
+
+          def _minutes(t):
+              h, m = [int(x) for x in t.split(":")]
+              return h * 60 + m
+
+
+          def _hhmm(v):
+              v = v % (24 * 60)
+              return "%02d:%02d" % (v // 60, v % 60)
+
+
+          def main(extracted_json: str, now_iso: str, existing: str) -> dict:
+              raw = str(extracted_json or "")
+              text = re.sub(r"<think.*?</think>", "", raw, flags=re.S)
+              a, b = text.find("{"), text.rfind("}")
+              data = {}
+              if a >= 0 and b > a:
+                  try:
+                      data = json.loads(text[a:b + 1])
+                  except Exception:
+                      data = {}
+
+              items = data.get("items")
+              if not isinstance(items, list) or not items:
+                  items = [data] if data.get("title") else []
+
+              today = date.today()
+              if now_iso:
+                  try:
+                      today = datetime.fromisoformat(now_iso).date()
+                  except Exception:
+                      pass
+
+              try:
+                  rows = json.loads(existing or "[]")
+                  if isinstance(rows, dict):
+                      rows = rows.get("data") or []
+              except Exception:
+                  rows = []
+              if not isinstance(rows, list):
+                  rows = []
+
+              events = []
+              tasks = []
+              conflicts = []
+              lines_out = []
+              missing = []
+
+              for item in items:
+                  title = str(item.get("title") or "").strip()
+                  if not title:
+                      missing.append(item)
+                      continue
+
+                  day = _date(item.get("date"), today)
+                  start = _time(item.get("start_time"))
+                  end = _time(item.get("end_time"))
+                  kind = str(item.get("kind") or ("event" if start else "task"))
+                  location = str(item.get("location") or "").strip()
+                  category = str(item.get("category") or "其他").strip() or "其他"
+
+                  if kind == "event" and start and day:
+                      if not end:
+                          end = _hhmm(_minutes(start) + 60)
+                      key = day.isoformat()
+                      new_row = {
+                          "user_id": "demo",
+                          "title": title,
+                          "event_date": key,
+                          "start_time": start,
+                          "end_time": end,
+                          "location": location,
+                          "category": category,
+                          "note": "来自智能体",
+                          "source": "agent",
+                          "status": "planned",
+                      }
+                      ns, ne = _minutes(start), _minutes(end)
+                      hits = []
+                      for row in rows:
+                          if str(row.get("event_date") or "")[:10] != key:
+                              continue
+                          s2 = _minutes(str(row.get("start_time") or "00:00")[:5])
+                          e2 = _minutes(str(row.get("end_time") or "00:00")[:5])
+                          if ns < e2 and s2 < ne:
+                              hits.append(str(row.get("title") or "未命名"))
+                      for row in events:
+                          if row["event_date"] != key:
+                              continue
+                          s2 = _minutes(row["start_time"])
+                          e2 = _minutes(row["end_time"])
+                          if ns < e2 and s2 < ne:
+                              hits.append(row["title"])
+                      if hits:
+                          conflicts.append("%s 与 %s 冲突" % (title, "、".join(hits)))
+                      events.append(new_row)
+                      lines_out.append("%s｜%s %s-%s｜%s%s" % (
+                          title, key, start, end, location or "地点待定",
+                          "（与 %s 冲突）" % "、".join(hits) if hits else ""))
+                  else:
+                      tasks.append({
+                          "user_id": "demo",
+                          "title": title,
+                          "done": False,
+                          "task_date": (day.isoformat() if day else today.isoformat()),
+                      })
+                      lines_out.append("%s｜%s｜已放任务栏" % (
+                          title, day.isoformat() if day else today.isoformat()))
+
+              ok = len(missing) == 0 and bool(items)
+              if not items:
+                  ask_text = "没识别出具体安排。可以直接说“明天下午三点开会”，或者贴一段通知。"
+              elif missing:
+                  ask_text = "有 %d 条没识别出标题，麻烦补一下（比如带引号写标题）。" % len(missing)
+              else:
+                  ask_text = ""
+
+              draft = missing[0] if missing else {}
+              summary = "\n".join(lines_out)
+              conflict_text = "；".join(conflicts) if conflicts else "无冲突"
+
+              return {
+                  "ok": ok,
+                  "ask_text": ask_text,
+                  "summary": summary,
+                  "conflict_text": conflict_text,
+                  "events_json": json.dumps(events, ensure_ascii=False),
+                  "tasks_json": json.dumps(tasks, ensure_ascii=False),
+                  "draft_json": json.dumps(draft, ensure_ascii=False),
+                  "event_count": len(events),
+                  "task_count": len(tasks),
+              }
+
+        code_language: python3
+        outputs:
+          ask_text:
+            children: null
+            type: string
+          conflict_text:
+            children: null
+            type: string
+          draft_json:
+            children: null
+            type: string
+          event_count:
+            children: null
+            type: number
+          events_json:
+            children: null
+            type: string
+          ok:
+            children: null
+            type: boolean
+          summary:
+            children: null
+            type: string
+          task_count:
+            children: null
+            type: number
+          tasks_json:
+            children: null
+            type: string
+        selected: false
+        title: 校验与分流
+        type: code
+        variables:
+        - value_selector:
+          - extract
+          - text
+          variable: extracted_json
+        - value_selector:
+          - now
+          - now
+          variable: now_iso
+        - value_selector:
+          - window
+          - body
+          variable: existing
+      height: 50
+      id: validate
+      position:
+        x: 1680
+        y: 120
+      positionAbsolute:
+        x: 1680
+        y: 120
+      selected: false
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        cases:
+        - case_id: 'true'
+          conditions:
+          - comparison_operator: is
+            id: c-ok
+            value: 'true'
+            variable_selector:
+            - validate
+            - ok
+          id: 'true'
+          logical_operator: and
+        selected: false
+        title: 信息是否齐全
+        type: if-else
+      height: 122
+      id: ready
+      position:
+        x: 1960
+        y: 120
+      positionAbsolute:
+        x: 1960
+        y: 120
+      selected: false
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        items:
+        - input_type: variable
+          operation: over-write
+          value:
+          - validate
+          - draft_json
+          variable_selector:
+          - conversation
+          - draft
+        selected: false
+        title: 暂存草稿
+        type: assigner
+        version: '2'
+      height: 82
+      id: set_ask
+      position:
+        x: 2240
+        y: 320
+      positionAbsolute:
+        x: 2240
+        y: 320
+      selected: false
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        answer: '还差点信息：{{#validate.ask_text#}}。
+
+          补一句就行，比如“明天下午三点”。
+
+          '
+        selected: false
+        title: 追问缺失信息
+        type: answer
+      height: 148
+      id: ask
+      position:
+        x: 2520
+        y: 320
+      positionAbsolute:
+        x: 2520
+        y: 320
+      selected: false
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        authorization:
+          config: null
+          type: no-auth
+        body:
+          data:
+          - type: text
+            value: '{{#validate.events_json#}}'
+          type: raw-text
+        headers: 'apikey: sb_publishable_KM0WOynrv6ds56zbjClqcw_aRWllsvJ
+
+          Authorization: Bearer sb_publishable_KM0WOynrv6ds56zbjClqcw_aRWllsvJ
+
+          Content-Type: application/json
+
+          Prefer: return=minimal'
+        error_strategy: default-value
+        default_value: []
+        method: post
+        params: ''
+        retry_config:
+          max_retries: 1
+          retry_enabled: false
+          retry_interval: 100
+        selected: false
+        ssl_verify: true
+        timeout:
+          max_connect_timeout: 0
+          max_read_timeout: 0
+          max_write_timeout: 0
+        title: 保存日程
+        type: http-request
+        url: https://cfqneqilfjsxwbzmtjan.supabase.co/rest/v1/schedules
+      height: 106
+      id: post
+      position:
+        x: 1400
+        y: 560
+      positionAbsolute:
+        x: 1400
+        y: 560
+      selected: false
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        items:
+        - input_type: variable
+          operation: clear
+          value: ''
+          variable_selector:
+          - conversation
+          - draft
+        selected: false
+        title: 清空草稿
+        type: assigner
+        version: '2'
+      height: 82
+      id: set_saved
+      position:
+        x: 1680
+        y: 560
+      positionAbsolute:
+        x: 1680
+        y: 560
+      selected: false
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        answer: '已记下 {{#validate.event_count#}} 条日程、{{#validate.task_count#}} 条任务：
+
+          {{#validate.summary#}}
+
+          {{#validate.conflict_text#}}
+
+          要改直接说，比如“改到四点”或“删掉这条”。
+
+          '
+        selected: false
+        title: 保存成功
+        type: answer
+      height: 117
+      id: saved
+      position:
+        x: 1960
+        y: 560
+      positionAbsolute:
+        x: 1960
+        y: 560
+      selected: false
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        model:
+          completion_params:
+            temperature: 0.2
+          mode: chat
+          name: deepseek-v4-flash
+          provider: langgenius/deepseek/deepseek
+        prompt_template:
+        - role: system
+        text: |
+            你是一个可爱、亲切、活泼的校园日程小助手。
+
+            你就像用户身边一个贴心的小伙伴，擅长整理日程、寻找空闲时间，也会在用户需要时给出一些实用的小建议。
+
+            你的说话风格：
+            1. 使用自然、轻松的中文口语，不要像系统通知或正式报告。
+            2. 可以适当使用「好哒」「收到啦」「安排上！」等可爱表达，但不要频繁重复。
+            3. 可以偶尔使用合适的 emoji，比如 🌷✨📚，让交流更有亲切感。
+            4. 不要过度卖萌，不要使用幼稚、夸张或刻意撒娇的表达。
+            5. 回答以清楚、实用为主。用户问什么就回答什么，不要为了活泼而说太多废话。
+
+            接口数据：
+
+            {{#window.body#}}
+
+            回答要求：
+
+            1. 只使用上面的数据，不得编造日程，也不要擅自补充没有记录的活动。
+            2. 按日期、开始时间排序，用清晰的列表输出，每条写“日期 时间 标题 地点”。
+            3. 数据为空时，直接用轻松自然的语气告诉用户这段时间没有安排，可以适当提醒用户有空档可以自由安排。
+            4. 不要输出 JSON，用自然中文，表达简洁、亲切。
+            5. 如果用户在问“怎么安排/哪里有空/这周怎么过”，结合快照给出建议，指出最满的一天和最空的时段。建议要具体、实用，不要泛泛而谈。
+
+            全局快照（过去与未来各 7 天）：{{#snapshot.text#}}
+        - role: user
+          text: '{{#sys.query#}}'
+        selected: false
+        title: 生成安排说明
+        type: llm
+        vision:
+          enabled: false
+      height: 86
+      id: query_reply
+      position:
+        x: 1680
+        y: 760
+      positionAbsolute:
+        x: 1680
+        y: 760
+      selected: false
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        authorization:
+          config: null
+          type: no-auth
+        body:
+          data: []
+          type: none
+        headers: ''
+        method: get
+        params: ''
+        retry_config:
+          max_retries: 2
+          retry_enabled: true
+          retry_interval: 100
+        selected: false
+        ssl_verify: true
+        timeout:
+          max_connect_timeout: 0
+          max_read_timeout: 0
+          max_write_timeout: 0
+        title: 读取复盘范围
+        type: http-request
+        url: '{{#env.BASE_URL#}}/schedules?apikey=sb_publishable_KM0WOynrv6ds56zbjClqcw_aRWllsvJ&user_id=eq.{{#env.USER_ID#}}&event_date=gte.{{#rev_range.start_date#}}&event_date=lte.{{#rev_range.end_date#}}&order=event_date.asc,start_time.asc'
+      height: 242
+      id: get_range_review
+      position:
+        x: 1392.4160708012364
+        y: 1006.4515663424261
+      positionAbsolute:
+        x: 1392.4160708012364
+        y: 1006.4515663424261
+      selected: false
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        answer: '我是校园日程助手，可以帮你：
+
+          1. 录入日程（粘贴通知或直接说）
+
+          2. 查某天/某周安排
+
+          3. 做日程复盘
+
+
+          你想做哪一件？
+
+          '
+        selected: false
+        title: 其他问题
+        type: answer
+      height: 146
+      id: other
+      position:
+        x: 1400
+        y: -280
+      positionAbsolute:
+        x: 1400
+        y: -280
+      selected: false
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        code: |
+
+          from datetime import datetime, timedelta, timezone
+
+
+          def main() -> dict:
+              tz = timezone(timedelta(hours=8))
+              today = datetime.now(tz).date()
+              return {
+                  "start_date": (today - timedelta(days=7)).isoformat(),
+                  "end_date": (today + timedelta(days=7)).isoformat(),
+              }
+
+        code_language: python3
+        outputs:
+          end_date:
+            children: null
+            type: string
+          start_date:
+            children: null
+            type: string
+        selected: false
+        title: 窗口日期
+        type: code
+        variables: []
+      height: 50
+      id: win
+      position:
+        x: 280
+        y: 520
+      positionAbsolute:
+        x: 280
+        y: 520
+      selected: false
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        authorization:
+          config: null
+          type: no-auth
+        body:
+          data: []
+          type: none
+        headers: 'apikey: sb_publishable_KM0WOynrv6ds56zbjClqcw_aRWllsvJ
+
+          Authorization: Bearer sb_publishable_KM0WOynrv6ds56zbjClqcw_aRWllsvJ'
+        method: get
+        params: ''
+        retry_config:
+          max_retries: 2
+          retry_enabled: true
+          retry_interval: 100
+        selected: false
+        ssl_verify: true
+        timeout:
+          max_connect_timeout: 0
+          max_read_timeout: 0
+          max_write_timeout: 0
+        title: 读取全局窗口
+        type: http-request
+        url: 'https://cfqneqilfjsxwbzmtjan.supabase.co/rest/v1/schedules?apikey=sb_publishable_KM0WOynrv6ds56zbjClqcw_aRWllsvJ&user_id=eq.{{#env.USER_ID#}}&event_date=gte.{{#win.start_date#}}&event_date=lte.{{#win.end_date#}}&order=event_date.asc,start_time.asc'
+      height: 208
+      id: window
+      position:
+        x: 280
+        y: 640
+      positionAbsolute:
+        x: 280
+        y: 640
+      selected: false
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        code: |
+
+          import json
+
+
+          def _hm(value):
+              parts = str(value or "00:00").split(":")
+              return int(parts[0]) * 60 + int(parts[1] if len(parts) > 1 else 0)
+
+
+          def main(body: str, now_iso: str) -> dict:
+              try:
+                  rows = json.loads(body or "[]")
+                  if isinstance(rows, dict):
+                      rows = rows.get("data") or []
+              except Exception:
+                  rows = []
+              if not isinstance(rows, list):
+                  rows = []
+
+              days = {}
+              for item in rows:
+                  key = str(item.get("event_date") or "")[:10]
+                  if not key:
+                      continue
+                  bucket = days.setdefault(key, {"n": 0, "min": 0, "first": "99:99", "last": "00:00"})
+                  bucket["n"] += 1
+                  start = _hm(item.get("start_time"))
+                  finish = _hm(item.get("end_time"))
+                  bucket["min"] += max(0, finish - start)
+                  if start < _hm(bucket["first"]):
+                      bucket["first"] = str(item.get("start_time"))[:5]
+                  if finish > _hm(bucket["last"]):
+                      bucket["last"] = str(item.get("end_time"))[:5]
+
+              lines = []
+              for key in sorted(days):
+                  bucket = days[key]
+                  lines.append("%s  %d 条  %.1f 小时  最早 %s  最晚 %s" % (
+                      key, bucket["n"], bucket["min"] / 60.0, bucket["first"], bucket["last"]))
+              if not lines:
+                  lines.append("（过去两周和未来两周都没有安排）")
+
+              return {"text": "过去/未来各 7 天概览：\n" + "\n".join(lines)}
+
+        code_language: python3
+        outputs:
+          text:
+            children: null
+            type: string
+
+        selected: false
+        title: 全局快照
+        type: code
+        variables:
+        - value_selector:
+          - window
+          - body
+          variable: body
+        - value_selector:
+          - now
+          - now
+          variable: now_iso
+      height: 50
+      id: snapshot
+      position:
+        x: 560
+        y: 640
+      positionAbsolute:
+        x: 560
+        y: 640
+      selected: false
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        code: |
+
+          import json
+          import re
+
+          CONFIRM = ("确认", "确定")
+
+
+          def _line(item):
+              return "%s %s %s-%s" % (
+                  item.get("event_date", ""),
+                  item.get("title", ""),
+                  str(item.get("start_time") or "")[:5],
+                  str(item.get("end_time") or "")[:5],
+              )
+
+
+          def _tokens(text):
+              dates = set()
+              for m in re.finditer(r"(20\d{2})-(\d{1,2})-(\d{1,2})", text):
+                  dates.add("%04d-%02d-%02d" % (int(m[1]), int(m[2]), int(m[3])))
+              for m in re.finditer(r"(?<![\d.])(\d{1,2})[.\-/](\d{1,2})(?![\d])", text):
+                  dates.add("%02d-%02d" % (int(m[1]), int(m[2])))
+              times = set()
+              for m in re.finditer(r"(?<!\d)(\d{1,2})[:：](\d{2})(?!\d)", text):
+                  times.add("%02d:%02d" % (int(m[1]), int(m[2])))
+              return dates, times
+
+
+          def _keep(item, dates, times, sd, se):
+              day = str(item.get("event_date") or "")[:10]
+              if sd and day and day < sd:
+                  return False
+              if se and day and day > se:
+                  return False
+              if dates and not any(day == d or day.endswith(d) for d in dates):
+                  return False
+              if times:
+                  st = str(item.get("start_time") or "")[:5]
+                  if st not in times:
+                      return False
+              return True
+
+
+          def main(body: str, target: str, pending: str, query: str, stage: str,
+                   candidates: str, start_date: str, end_date: str, pending_filter: str) -> dict:
+              try:
+                  rows = json.loads(body or "[]")
+                  if isinstance(rows, dict):
+                      rows = rows.get("data") or []
+              except Exception:
+                  rows = []
+              if not isinstance(rows, list):
+                  rows = []
+
+              text = str(query or "")
+              pending_id = str(pending or "").strip()
+              stage = str(stage or "").strip()
+              sd = str(start_date or "")[:10]
+              se = str(end_date or "")[:10]
+              if sd and se and sd > se:
+                  sd, se = se, sd
+
+              if pending_id and (any(w in text for w in CONFIRM) or text.strip() in ("删", "删除", "删掉")):
+                  return {"mode": "execute", "id": pending_id, "id_filter": (str(pending_filter or "").strip() or ("eq." + pending_id)),
+                          "count": 1, "dup_count": 1,
+                          "text": "正在删除…", "title": "", "item_json": "",
+                          "next_stage": "", "candidates_json": ""}
+
+              try:
+                  cands = json.loads(candidates or "[]")
+              except Exception:
+                  cands = []
+              if not isinstance(cands, list):
+                  cands = []
+
+              dates, times = _tokens(text)
+              key = str(target or "").strip()
+
+              pool = rows
+              if key:
+                  pool = [r for r in rows if key in str(r.get("title") or "")]
+              narrowed = [r for r in pool if _keep(r, dates, times, sd, se)]
+
+              if not narrowed and stage == "clarify" and cands:
+                  pool2 = cands
+                  if key:
+                      pool2 = [r for r in cands if key in str(r.get("title") or "")]
+                  narrowed = [r for r in pool2 if _keep(r, dates, times, sd, se)]
+
+              if not narrowed:
+                  return {"mode": "none", "id": "", "id_filter": "", "count": 0, "dup_count": 0,
+                          "text": "没找到匹配的日程。可以说得再具体一点，比如“11月3日 15:00 和导师开会”。",
+                          "title": "", "item_json": "", "next_stage": "", "candidates_json": ""}
+
+              groups = {}
+              order = []
+              for item in narrowed:
+                  k = (str(item.get("title") or ""), str(item.get("event_date") or "")[:10],
+                       str(item.get("start_time") or "")[:5], str(item.get("end_time") or "")[:5])
+                  if k not in groups:
+                      groups[k] = []
+                      order.append(k)
+                  groups[k].append(item)
+
+              if len(order) == 1:
+                  group = groups[order[0]]
+                  ids = [str(x.get("id") or "") for x in group if x.get("id")]
+                  item = group[0]
+                  extra = "" if len(ids) <= 1 else "\n注意：这条有 %d 条完全相同的记录，会一起删掉。" % len(ids)
+                  return {"mode": "confirm", "id": ids[0] if ids else "",
+                          "id_filter": "in.(%s)" % ",".join(ids),
+                          "count": len(ids), "dup_count": len(ids),
+                          "text": "找到 1 条：\n" + _line(item) + extra + "\n\n要删的话回“确认”。",
+                          "title": item.get("title", ""),
+                          "item_json": json.dumps(item, ensure_ascii=False),
+                          "next_stage": "confirm",
+                          "candidates_json": json.dumps(narrowed[:5], ensure_ascii=False)}
+
+              rendered = [_line(groups[k][0]) for k in order[:5]]
+              return {"mode": "multiple", "id": "", "id_filter": "", "count": len(order), "dup_count": 0,
+                      "text": "找到 %d 条：\n%s\n\n说清楚删哪条，比如“11月3日 15:00 的那条”。" % (len(order), "\n".join(rendered)),
+                      "title": "", "item_json": "",
+                      "next_stage": "clarify",
+                      "candidates_json": json.dumps([groups[k][0] for k in order[:5]], ensure_ascii=False)}
+
+        code_language: python3
+        outputs:
+          candidates_json:
+            children: null
+            type: string
+          count:
+            children: null
+            type: number
+          dup_count:
+            children: null
+            type: number
+          id:
+            children: null
+            type: string
+          id_filter:
+            children: null
+            type: string
+          item_json:
+            children: null
+            type: string
+          mode:
+            children: null
+            type: string
+          next_stage:
+            children: null
+            type: string
+          text:
+            children: null
+            type: string
+          title:
+            children: null
+            type: string
+
+        selected: false
+        title: 定位日程
+        type: code
+        variables:
+        - value_selector:
+          - conversation
+          - pending_delete_filter
+          variable: pending_filter
+        - value_selector:
+          - intent_parse
+          - start_date
+          variable: start_date
+        - value_selector:
+          - intent_parse
+          - end_date
+          variable: end_date
+        - value_selector:
+          - conversation
+          - delete_stage
+          variable: stage
+        - value_selector:
+          - conversation
+          - delete_candidates
+          variable: candidates
+        - value_selector:
+          - window
+          - body
+          variable: body
+        - value_selector:
+          - intent_parse
+          - target
+          variable: target
+        - value_selector:
+          - conversation
+          - pending_delete
+          variable: pending
+        - value_selector:
+          - sys
+          - query
+          variable: query
+      height: 50
+      id: locate
+      position:
+        x: 1120
+        y: 520
+      positionAbsolute:
+        x: 1120
+        y: 520
+      selected: false
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        cases:
+        - case_id: 'true'
+          conditions:
+          - comparison_operator: is
+            id: c-del-exec
+            value: execute
+            variable_selector:
+            - locate
+            - mode
+          id: 'true'
+          logical_operator: and
+        selected: false
+        title: 是否执行删除
+        type: if-else
+      height: 122
+      id: del_check
+      position:
+        x: 1400
+        y: 520
+      positionAbsolute:
+        x: 1400
+        y: 520
+      selected: false
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        items:
+        - input_type: variable
+          operation: over-write
+          value:
+          - locate
+          - id_filter
+          variable_selector:
+          - conversation
+          - pending_delete_filter
+        - input_type: variable
+          operation: over-write
+          value:
+          - locate
+          - next_stage
+          variable_selector:
+          - conversation
+          - delete_stage
+        - input_type: variable
+          operation: over-write
+          value:
+          - locate
+          - candidates_json
+          variable_selector:
+          - conversation
+          - delete_candidates
+        - input_type: variable
+          operation: over-write
+          value:
+          - locate
+          - id
+          variable_selector:
+          - conversation
+          - pending_delete
+        selected: false
+        title: 暂存待删
+        type: assigner
+        version: '2'
+      height: 82
+      id: del_assign
+      position:
+        x: 1680
+        y: 640
+      positionAbsolute:
+        x: 1680
+        y: 640
+      selected: false
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        answer: '{{#locate.text#}}
+
+          '
+        selected: false
+        title: 删除确认
+        type: answer
+      height: 120
+      id: del_ask
+      position:
+        x: 1960
+        y: 640
+      positionAbsolute:
+        x: 1960
+        y: 640
+      selected: false
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        authorization:
+          config: null
+          type: no-auth
+        body:
+          data: []
+          type: none
+        headers: 'apikey: sb_publishable_KM0WOynrv6ds56zbjClqcw_aRWllsvJ
+
+          Authorization: Bearer sb_publishable_KM0WOynrv6ds56zbjClqcw_aRWllsvJ
+
+          Content-Type: application/json
+
+          Prefer: return=representation'
+        error_strategy: default-value
+        default_value: []
+        method: delete
+        params: ''
+        retry_config:
+          max_retries: 1
+          retry_enabled: false
+          retry_interval: 100
+        selected: false
+        ssl_verify: true
+        timeout:
+          max_connect_timeout: 0
+          max_read_timeout: 0
+          max_write_timeout: 0
+        title: 执行删除
+        type: http-request
+        url: 'https://cfqneqilfjsxwbzmtjan.supabase.co/rest/v1/schedules?apikey=sb_publishable_KM0WOynrv6ds56zbjClqcw_aRWllsvJ&id={{#locate.id_filter#}}'
+      height: 208
+      id: del_exec
+      position:
+        x: 1680
+        y: 400
+      positionAbsolute:
+        x: 1680
+        y: 400
+      selected: false
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        code: |
+
+          import json
+
+
+          def main(body: str) -> dict:
+              try:
+                  rows = json.loads(body or "[]")
+                  if isinstance(rows, dict):
+                      rows = rows.get("data") or []
+              except Exception:
+                  rows = []
+              if not isinstance(rows, list):
+                  rows = []
+
+              n = len(rows)
+              if n == 0:
+                  return {"text": "没删掉任何记录。可能是这条已经不在了，或者匹配到了错误的 ID。", "deleted": 0}
+              names = "、".join(str(r.get("title") or "未命名") for r in rows[:5])
+              return {"text": "删掉了 %d 条：%s" % (n, names), "deleted": n}
+
+        code_language: python3
+        outputs:
+          deleted:
+            children: null
+            type: number
+          text:
+            children: null
+            type: string
+        selected: false
+        title: 核对删除结果
+        type: code
+        variables:
+        - value_selector:
+          - del_exec
+          - body
+          variable: body
+      height: 50
+      id: del_result
+      position:
+        x: 2240
+        y: 640
+      positionAbsolute:
+        x: 2240
+        y: 640
+      selected: false
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        answer: '{{#del_result.text#}}'
+        selected: false
+        title: 删除完成
+        type: answer
+      height: 90
+      id: del_done
+      position:
+        x: 1960
+        y: 400
+      positionAbsolute:
+        x: 1960
+        y: 400
+      selected: false
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        code: |
+
+          import json
+
+
+          def main(body: str, target: str, start_date: str, end_date: str) -> dict:
+              try:
+                  rows = json.loads(body or "[]")
+                  if isinstance(rows, dict):
+                      rows = rows.get("data") or []
+              except Exception:
+                  rows = []
+              if not isinstance(rows, list):
+                  rows = []
+
+              key = str(target or "").strip()
+              lo = str(start_date or "").strip()[:10]
+              hi = str(end_date or "").strip()[:10]
+
+              matches = []
+              for item in rows:
+                  title = str(item.get("title") or "")
+                  day = str(item.get("event_date") or "")[:10]
+                  if key and key not in title:
+                      continue
+                  if not key:
+                      if lo and day < lo:
+                          continue
+                      if hi and day > hi:
+                          continue
+                  matches.append(item)
+
+              lines = []
+              for item in matches[:5]:
+                  lines.append("%s %s %s-%s" % (
+                      item.get("event_date", ""),
+                      item.get("title", ""),
+                      str(item.get("start_time") or "")[:5],
+                      str(item.get("end_time") or "")[:5],
+                  ))
+
+              if not matches:
+                  return {"found": "0", "count": 0, "id": "", "item_json": "",
+                          "text": "没找到要改的日程，说具体点，比如“周四的社团例会”。"}
+              if len(matches) == 1:
+                  return {"found": "1", "count": 1, "id": matches[0].get("id", ""),
+                          "item_json": json.dumps(matches[0], ensure_ascii=False),
+                          "text": "找到 1 条：\n" + lines[0]}
+              return {"found": "0", "count": len(matches), "id": "", "item_json": "",
+                      "text": "找到 %d 条：\n%s\n\n说清楚改哪条。" % (len(matches), "\n".join(lines))}
+
+        code_language: python3
+        outputs:
+          count:
+            children: null
+            type: number
+          found:
+            children: null
+            type: string
+          id:
+            children: null
+            type: string
+          item_json:
+            children: null
+            type: string
+          text:
+            children: null
+            type: string
+        selected: false
+        title: 定位待改
+        type: code
+        variables:
+        - value_selector:
+          - window
+          - body
+          variable: body
+        - value_selector:
+          - intent_parse
+          - target
+          variable: target
+        - value_selector:
+          - intent_parse
+          - start_date
+          variable: start_date
+        - value_selector:
+          - intent_parse
+          - end_date
+          variable: end_date
+      height: 50
+      id: upd_find
+      position:
+        x: 1120
+        y: 960
+      positionAbsolute:
+        x: 1120
+        y: 960
+      selected: false
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        cases:
+        - case_id: 'true'
+          conditions:
+          - comparison_operator: is
+            id: c-upd-found
+            value: '1'
+            variable_selector:
+            - upd_find
+            - found
+          id: 'true'
+          logical_operator: and
+        selected: false
+        title: 是否唯一命中
+        type: if-else
+      height: 122
+      id: upd_check
+      position:
+        x: 1400
+        y: 960
+      positionAbsolute:
+        x: 1400
+        y: 960
+      selected: false
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        code: |
+
+          import json
+
+
+          def _m(value):
+              parts = str(value or "00:00").split(":")
+              return int(parts[0]) * 60 + int(parts[1] if len(parts) > 1 else 0)
+
+
+          def _hhmm(total):
+              total = total % (24 * 60)
+              return "%02d:%02d" % (total // 60, total % 60)
+
+
+          def main(item_json: str, new_date: str, new_start: str, new_end: str) -> dict:
+              try:
+                  item = json.loads(item_json or "{}")
+              except Exception:
+                  item = {}
+
+              patch = {}
+              date_value = str(new_date or "").strip()
+              if date_value:
+                  patch["event_date"] = date_value[:10]
+
+              start = str(new_start or "").strip()
+              end = str(new_end or "").strip()
+              if start:
+                  patch["start_time"] = start
+                  if end:
+                      patch["end_time"] = end
+                  else:
+                      duration = _m(item.get("end_time")) - _m(item.get("start_time"))
+                      if duration <= 0:
+                          duration = 60
+                      patch["end_time"] = _hhmm(_m(start) + duration)
+              elif end:
+                  patch["end_time"] = end
+
+              return {"patch_json": json.dumps(patch, ensure_ascii=False)}
+
+        code_language: python3
+        outputs:
+          patch_json:
+            children: null
+            type: string
+        selected: false
+        title: 构造修改
+        type: code
+        variables:
+        - value_selector:
+          - upd_find
+          - item_json
+          variable: item_json
+        - value_selector:
+          - intent_parse
+          - new_date
+          variable: new_date
+        - value_selector:
+          - intent_parse
+          - new_start
+          variable: new_start
+        - value_selector:
+          - intent_parse
+          - new_end
+          variable: new_end
+      height: 50
+      id: upd_row
+      position:
+        x: 1680
+        y: 840
+      positionAbsolute:
+        x: 1680
+        y: 840
+      selected: false
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        authorization:
+          config: null
+          type: no-auth
+        body:
+          data:
+          - type: text
+            value: '{{#upd_row.patch_json#}}'
+          type: raw-text
+        headers: 'apikey: sb_publishable_KM0WOynrv6ds56zbjClqcw_aRWllsvJ
+
+          Authorization: Bearer sb_publishable_KM0WOynrv6ds56zbjClqcw_aRWllsvJ
+
+          Content-Type: application/json
+
+          Prefer: return=minimal'
+        method: patch
+        params: ''
+        retry_config:
+          max_retries: 1
+          retry_enabled: false
+          retry_interval: 100
+        selected: false
+        ssl_verify: true
+        timeout:
+          max_connect_timeout: 0
+          max_read_timeout: 0
+          max_write_timeout: 0
+        title: 执行修改
+        type: http-request
+        url: 'https://cfqneqilfjsxwbzmtjan.supabase.co/rest/v1/schedules?apikey=sb_publishable_KM0WOynrv6ds56zbjClqcw_aRWllsvJ&id=eq.{{#upd_find.id#}}'
+      height: 208
+      id: upd_exec
+      position:
+        x: 1960
+        y: 840
+      positionAbsolute:
+        x: 1960
+        y: 840
+      selected: false
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        answer: '改好了。'
+        selected: false
+        title: 修改完成
+        type: answer
+      height: 90
+      id: upd_done
+      position:
+        x: 2240
+        y: 840
+      positionAbsolute:
+        x: 2240
+        y: 840
+      selected: false
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        answer: '{{#upd_find.text#}}'
+        selected: false
+        title: 修改澄清
+        type: answer
+      height: 90
+      id: upd_ask
+      position:
+        x: 1680
+        y: 1080
+      positionAbsolute:
+        x: 1680
+        y: 1080
+      selected: false
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        items:
+        - input_type: variable
+          operation: clear
+          value: ''
+          variable_selector:
+          - conversation
+          - pending_delete_filter
+        - input_type: variable
+          operation: clear
+          value: ''
+          variable_selector:
+          - conversation
+          - delete_stage
+        - input_type: variable
+          operation: clear
+          value: ''
+          variable_selector:
+          - conversation
+          - delete_candidates
+        - input_type: variable
+          operation: clear
+          value: ''
+          variable_selector:
+          - conversation
+          - pending_delete
+        selected: false
+        title: 清空待删
+        type: assigner
+        version: '2'
+      height: 82
+      id: del_clear
+      position:
+        x: 2240
+        y: 400
+      positionAbsolute:
+        x: 2240
+        y: 400
+      selected: false
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        code: |
+
+          import json
+          from datetime import date, datetime
+
+
+          def main(intent: str, intent_start: str, intent_end: str, stored: str, now_iso: str) -> dict:
+              today = date.today()
+              if now_iso:
+                  try:
+                      today = datetime.fromisoformat(now_iso).date()
+                  except Exception:
+                      pass
+
+              try:
+                  stored_data = json.loads(stored or "{}")
+              except Exception:
+                  stored_data = {}
+
+              use_stored = (
+                  str(intent or "").strip() == "review_feedback"
+                  and bool(stored_data.get("start"))
+                  and bool(stored_data.get("end"))
+              )
+
+              if use_stored:
+                  start = str(stored_data.get("start"))[:10]
+                  end = str(stored_data.get("end"))[:10]
+              else:
+                  start = str(intent_start or "").strip()[:10]
+                  end = str(intent_end or "").strip()[:10]
+                  if not start or not end:
+                      start = end = today.isoformat()
+
+              try:
+                  s = date.fromisoformat(start)
+                  e = date.fromisoformat(end)
+              except Exception:
+                  s = e = today
+
+              days = (e - s).days + 1
+              if days <= 3:
+                  period = "day"
+              elif days <= 10:
+                  period = "week"
+              else:
+                  period = "month"
+
+              return {
+                  "start_date": s.isoformat(),
+                  "end_date": e.isoformat(),
+                  "period": period,
+                  "days": days,
+                  "range_json": json.dumps({"start": s.isoformat(), "end": e.isoformat(), "period": period}, ensure_ascii=False),
+              }
+
+        code_language: python3
+        outputs:
+          days:
+            children: null
+            type: number
+          end_date:
+            children: null
+            type: string
+          period:
+            children: null
+            type: string
+          start_date:
+            children: null
+            type: string
+          range_json:
+            children: null
+            type: string
+        selected: false
+        title: 复盘范围
+        type: code
+        variables:
+        - value_selector:
+          - intent_parse
+          - intent
+          variable: intent
+        - value_selector:
+          - intent_parse
+          - start_date
+          variable: intent_start
+        - value_selector:
+          - intent_parse
+          - end_date
+          variable: intent_end
+        - value_selector:
+          - conversation
+          - review_range
+          variable: stored
+        - value_selector:
+          - now
+          - now
+          variable: now_iso
+      height: 50
+      id: rev_range
+      position:
+        x: 840
+        y: 1160
+      positionAbsolute:
+        x: 840
+        y: 1160
+      selected: false
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        code: |
+
+          import json
+          from datetime import date, timedelta
+
+
+          def _minutes(value):
+              parts = str(value or "00:00").split(":")
+              return int(parts[0]) * 60 + int(parts[1] if len(parts) > 1 else 0)
+
+
+          def _week_label(day_text):
+              try:
+                  d = date.fromisoformat(str(day_text)[:10])
+              except Exception:
+                  return ""
+              start = d - timedelta(days=d.weekday())
+              return "%s~%s" % (start.strftime("%m-%d"), (start + timedelta(days=6)).strftime("%m-%d"))
+
+
+          def main(body: str, reviews_body: str, period: str, start_date: str, end_date: str) -> dict:
+              try:
+                  rows = json.loads(body or "[]")
+                  if isinstance(rows, dict):
+                      rows = rows.get("data") or []
+              except Exception:
+                  rows = []
+              if not isinstance(rows, list):
+                  rows = []
+
+              total = len(rows)
+              done_manual = 0
+              done_auto = 0
+              undone = 0
+              cat_minutes = {}
+              cat_count = {}
+              day_rows = {}
+              week_rows = {}
+
+              for item in rows:
+                  status = str(item.get("status") or "planned")
+                  manual = item.get("manual_override") is True
+                  if status == "done" and manual:
+                      done_manual += 1
+                  elif status == "done":
+                      done_auto += 1
+                  else:
+                      undone += 1
+
+                  cat = str(item.get("category") or "其他")
+                  minutes = max(0, _minutes(item.get("end_time")) - _minutes(item.get("start_time")))
+                  cat_minutes[cat] = cat_minutes.get(cat, 0) + minutes
+                  cat_count[cat] = cat_count.get(cat, 0) + 1
+
+                  day = str(item.get("event_date") or "")[:10]
+                  day_rows.setdefault(day, []).append(item)
+
+                  label = _week_label(day)
+                  if label:
+                      bucket = week_rows.setdefault(label, {"total": 0, "done": 0})
+                      bucket["total"] += 1
+                      if status == "done":
+                          bucket["done"] += 1
+
+              cat_lines = []
+              for cat in sorted(cat_minutes, key=lambda k: -cat_minutes[k]):
+                  cat_lines.append("%s %.1f 小时（%d 条）" % (cat, cat_minutes[cat] / 60.0, cat_count[cat]))
+
+              items = []
+              for day in sorted(day_rows):
+                  for item in sorted(day_rows[day], key=lambda x: str(x.get("start_time") or "")):
+                      status = "已完成" if str(item.get("status")) == "done" else "未完成"
+                      if str(item.get("status")) == "done" and item.get("manual_override") is not True:
+                          status = "按时间默认完成"
+                      items.append("%s %s %s-%s %s（%s）" % (
+                          day, item.get("title", ""),
+                          str(item.get("start_time") or "")[:5], str(item.get("end_time") or "")[:5],
+                          item.get("location", ""), status))
+
+              done_list = []
+              undone_list = []
+              for day in sorted(day_rows):
+                  for item in sorted(day_rows[day], key=lambda x: str(x.get("start_time") or "")):
+                      line = "%s %s %s-%s" % (
+                          day, item.get("title", ""),
+                          str(item.get("start_time") or "")[:5], str(item.get("end_time") or "")[:5])
+                      if str(item.get("status")) == "done":
+                          done_list.append(line)
+                      else:
+                          undone_list.append(line)
+
+              done_text = "\n".join(done_list) if done_list else "（无）"
+              undone_text = "\n".join(undone_list) if undone_list else "（无）"
+
+              rate = int(round((done_manual + done_auto) * 100.0 / total)) if total else 0
+              summary = "%s 至 %s，共 %d 条安排：手动确认完成 %d 条，按时间默认完成 %d 条，未完成 %d 条（完成率 %d%%）。" % (
+                  start_date, end_date, total, done_manual, done_auto, undone, rate)
+              if cat_lines:
+                  summary += "\n时间去向：" + "；".join(cat_lines[:5])
+
+              week_lines = []
+              for label in sorted(week_rows):
+                  bucket = week_rows[label]
+                  week_rate = int(round(bucket["done"] * 100.0 / bucket["total"])) if bucket["total"] else 0
+                  week_lines.append("%s：%d 条，完成 %d 条（%d%%）" % (label, bucket["total"], bucket["done"], week_rate))
+              if period == "month" and week_lines:
+                  summary += "\n按周：" + "；".join(week_lines)
+              if not rows:
+                  summary = "%s 至 %s 没有安排。" % (start_date, end_date)
+
+              history_lines = []
+              try:
+                  reviews = json.loads(reviews_body or "[]")
+                  if isinstance(reviews, dict):
+                      reviews = reviews.get("data") or []
+              except Exception:
+                  reviews = []
+              if isinstance(reviews, list):
+                  for review in reviews[:3]:
+                      text = str(review.get("report") or "").replace("\n", " ")
+                      history_lines.append("[%s] %s" % (str(review.get("range_start") or "")[:10], text[:160]))
+
+              if period == "day":
+                  ask_text = (summary + "\n\n已完成：\n" + done_text +
+                              "\n\n未完成：\n" + undone_text +
+                              "\n\n上面没完成的，是什么原因？明天想怎么调整？")
+              elif period == "month":
+                  ask_text = (summary + "\n\n已完成：\n" + done_text +
+                              "\n\n未完成：\n" + undone_text +
+                              "\n\n这三件事：\n1. 上面未完成的那几条，分别是什么原因？\n2. 这个月最大的问题是什么？\n3. 下个月想改进什么？")
+              else:
+                  ask_text = (summary + "\n\n已完成：\n" + done_text +
+                              "\n\n未完成：\n" + undone_text +
+                              "\n\n告诉我三件事：\n1. 上面未完成的那几条，分别是什么原因？\n2. 本周最有成就感的一件事（学业/项目/班级/技能）\n3. 遇到的问题，或想沉淀下来的经验")
+
+              return {
+                  "summary": summary,
+                  "items": "\n".join(items) if items else "（没有日程）",
+                  "history": "\n".join(history_lines) if history_lines else "（没有历史复盘）",
+                  "ask_text": ask_text,
+                  "stats_json": json.dumps({
+                      "total": total,
+                      "done_manual": done_manual,
+                      "done_auto": done_auto,
+                      "undone": undone,
+                      "rate": rate,
+                      "categories": cat_minutes,
+                      "weeks": week_rows,
+                  }, ensure_ascii=False),
+              }
+
+        code_language: python3
+        outputs:
+          ask_text:
+            children: null
+            type: string
+          history:
+            children: null
+            type: string
+          items:
+            children: null
+            type: string
+          stats_json:
+            children: null
+            type: string
+          summary:
+            children: null
+            type: string
+        selected: false
+        title: 复盘统计
+        type: code
+        variables:
+        - value_selector:
+          - get_range_review
+          - body
+          variable: body
+        - value_selector:
+          - get_reviews
+          - body
+          variable: reviews_body
+        - value_selector:
+          - rev_range
+          - period
+          variable: period
+        - value_selector:
+          - rev_range
+          - start_date
+          variable: start_date
+        - value_selector:
+          - rev_range
+          - end_date
+          variable: end_date
+      height: 50
+      id: rev_stats
+      position:
+        x: 1120
+        y: 1160
+      positionAbsolute:
+        x: 1120
+        y: 1160
+      selected: false
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        authorization:
+          config: null
+          type: no-auth
+        body:
+          data: []
+          type: none
+        headers: 'apikey: sb_publishable_KM0WOynrv6ds56zbjClqcw_aRWllsvJ
+
+          Authorization: Bearer sb_publishable_KM0WOynrv6ds56zbjClqcw_aRWllsvJ'
+        method: get
+        params: ''
+        retry_config:
+          max_retries: 2
+          retry_enabled: true
+          retry_interval: 100
+        selected: false
+        ssl_verify: true
+        timeout:
+          max_connect_timeout: 0
+          max_read_timeout: 0
+          max_write_timeout: 0
+        title: 历史复盘
+        type: http-request
+        url: 'https://cfqneqilfjsxwbzmtjan.supabase.co/rest/v1/reviews?apikey=sb_publishable_KM0WOynrv6ds56zbjClqcw_aRWllsvJ&user_id=eq.{{#env.USER_ID#}}&period=eq.{{#rev_range.period#}}&order=created_at.desc&limit=3'
+      height: 208
+      id: get_reviews
+      position:
+        x: 1400
+        y: 1160
+      positionAbsolute:
+        x: 1400
+        y: 1160
+      selected: false
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        cases:
+        - case_id: 'true'
+          conditions:
+          - comparison_operator: is
+            id: c-rev-collect
+            value: review_feedback
+            variable_selector:
+            - intent_parse
+            - intent
+          id: 'true'
+          logical_operator: and
+        selected: false
+        title: 是否生成报告
+        type: if-else
+      height: 122
+      id: rev_check
+      position:
+        x: 1680
+        y: 1160
+      positionAbsolute:
+        x: 1680
+        y: 1160
+      selected: false
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        answer: '{{#rev_stats.ask_text#}}'
+        selected: false
+        title: 复盘提问
+        type: answer
+      height: 120
+      id: rev_ask
+      position:
+        x: 1960
+        y: 1360
+      positionAbsolute:
+        x: 1960
+        y: 1360
+      selected: false
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        items:
+        - input_type: variable
+          operation: over-write
+          value:
+          - rev_range
+          - range_json
+          variable_selector:
+          - conversation
+          - review_range
+        - input_type: constant
+          operation: over-write
+          value: collect
+          variable_selector:
+          - conversation
+          - review_stage
+        selected: false
+        title: 暂存复盘状态
+        type: assigner
+        version: '2'
+      height: 82
+      id: rev_assign
+      position:
+        x: 1680
+        y: 1360
+      positionAbsolute:
+        x: 1680
+        y: 1360
+      selected: false
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        model:
+          completion_params:
+            temperature: 0.4
+          mode: chat
+          name: deepseek-v4-pro
+          provider: langgenius/deepseek/deepseek
+        prompt_template:
+        - role: system
+        text: |
+            你是一个陪伴大学生管理时间的校园日程小助手。
+
+            你的性格亲切、可爱、温柔，但也有自己的判断。你不是一个只会夸奖用户的机器人，而是一个认真帮助用户了解自己时间使用情况的小伙伴。
+
+            复盘时的表达风格：
+            1. 像朋友聊天一样自然，不要使用过于正式的报告腔。
+            2. 先说结论，再分析细节。
+            3. 可以适当使用 emoji 和轻松的表达，但不要每段都卖萌。
+            4. 肯定用户真实的进步，也要温和、诚实地指出问题。
+            5. 不要说教，不要制造焦虑，更不要为了鼓励用户而无依据地夸奖。
+            6. 分析要有实际价值，尽量帮助用户找到可以复用的方法。
+
+            本次范围：{{#rev_range.start_date#}} 至 {{#rev_range.end_date#}}（类型：{{#rev_range.period#}}）
+
+            如果类型是 day，只写三段：完成情况、时间去向、明天的一条建议，不超过 150 字。
+
+            数据统计：
+            {{#rev_stats.summary#}}
+
+            日程明细：
+            {{#rev_stats.items#}}
+
+            历史复盘（最近三次）：
+            {{#rev_stats.history#}}
+
+            用户这次补充的话：
+            {{#sys.query#}}
+
+            输出要求：
+            1. 用中文，markdown 风格的小标题。
+            2. 分段落写：完成情况、时间去向、亮点、问题、可复用的方法、下一步建议。
+            3. “完成情况”这一段要明确列出：哪些完成了、哪些没完成（直接用日程里的标题和日期），不要只说数量。
+            4. 对于用户没有提供的主观信息（如高光、原因、经验），结合已有日程和统计数据进行客观分析，可以从实际记录中提炼亮点、发现规律、总结方法。不能凭空编造用户的感受、动机或经历，也不要简单停在“本次未提供”。
+            5. 如果历史复盘里提过建议，对比这次数据看有没有改善，指出来。既要关注进步，也要留意仍然存在的问题。
+            6. 建议要具体、可执行，尽量给出用户明天或下一周就能尝试的小行动。
+            7. 不超过 400 字。
+        - role: user
+          text: '{{#sys.query#}}'
+        selected: false
+        title: 生成复盘报告
+        type: llm
+        vision:
+          enabled: false
+      height: 86
+      id: rev_report
+      position:
+        x: 1960
+        y: 1160
+      positionAbsolute:
+        x: 1960
+        y: 1160
+      selected: false
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        code: |
+
+          import json
+
+
+          def main(report: str, period: str, start_date: str, end_date: str, stats_json: str) -> dict:
+              try:
+                  stats = json.loads(stats_json or "{}")
+              except Exception:
+                  stats = {}
+              row = {
+                  "user_id": "demo",
+                  "period": period,
+                  "range_start": start_date,
+                  "range_end": end_date,
+                  "report": report,
+                  "stats": stats,
+              }
+              return {"row_json": json.dumps(row, ensure_ascii=False)}
+
+        code_language: python3
+        outputs:
+          row_json:
+            children: null
+            type: string
+        selected: false
+        title: 构造复盘行
+        type: code
+        variables:
+        - value_selector:
+          - rev_report
+          - text
+          variable: report
+        - value_selector:
+          - rev_range
+          - period
+          variable: period
+        - value_selector:
+          - rev_range
+          - start_date
+          variable: start_date
+        - value_selector:
+          - rev_range
+          - end_date
+          variable: end_date
+        - value_selector:
+          - rev_stats
+          - stats_json
+          variable: stats_json
+      height: 50
+      id: rev_row
+      position:
+        x: 2240
+        y: 1160
+      positionAbsolute:
+        x: 2240
+        y: 1160
+      selected: false
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        authorization:
+          config: null
+          type: no-auth
+        body:
+          data:
+          - type: text
+            value: '{{#rev_row.row_json#}}'
+          type: raw-text
+        headers: 'apikey: sb_publishable_KM0WOynrv6ds56zbjClqcw_aRWllsvJ
+
+          Authorization: Bearer sb_publishable_KM0WOynrv6ds56zbjClqcw_aRWllsvJ
+
+          Content-Type: application/json
+
+          Prefer: return=minimal'
+        error_strategy: default-value
+        default_value: []
+        method: post
+        params: ''
+        retry_config:
+          max_retries: 1
+          retry_enabled: false
+          retry_interval: 100
+        selected: false
+        ssl_verify: true
+        timeout:
+          max_connect_timeout: 0
+          max_read_timeout: 0
+          max_write_timeout: 0
+        title: 保存复盘
+        type: http-request
+        url: 'https://cfqneqilfjsxwbzmtjan.supabase.co/rest/v1/reviews?apikey=sb_publishable_KM0WOynrv6ds56zbjClqcw_aRWllsvJ'
+      height: 208
+      id: rev_save
+      position:
+        x: 2520
+        y: 1160
+      positionAbsolute:
+        x: 2520
+        y: 1160
+      selected: false
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        items:
+        - input_type: variable
+          operation: clear
+          value: ''
+          variable_selector:
+          - conversation
+          - review_stage
+        selected: false
+        title: 清空复盘状态
+        type: assigner
+        version: '2'
+      height: 82
+      id: rev_clear
+      position:
+        x: 2800
+        y: 1160
+      positionAbsolute:
+        x: 2800
+        y: 1160
+      selected: false
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        answer: '{{#rev_report.text#}}'
+        selected: false
+        title: 复盘报告
+        type: answer
+      height: 90
+      id: rev_answer
+      position:
+        x: 3080
+        y: 1160
+      positionAbsolute:
+        x: 3080
+        y: 1160
+      selected: false
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        model:
+          completion_params:
+            temperature: 0.1
+          mode: chat
+          name: deepseek-flash
+          provider: langgenius/deepseek/deepseek
+        prompt_template:
+        - role: system
+        text: |
+            你是校园日程助手的规划模块。你的任务是从用户消息中准确提取需要安排的目标，并识别用户提出的时间限制和其他要求。
+
+            请尽量保留用户的真实意图，不要把普通聊天内容误判为规划目标。
+
+            当前时间：{{#now.now#}}（{{#now.weekday#}}）
+
+            只输出 JSON：
+            {"goals":[{"title":"目标名称","duration_min":120,"deadline":"YYYY-MM-DD 或 null","priority":"高|中|低"}],"constraints":"用户提到的限制，没有就填空字符串"}
+
+            规则：
+            1. 用户没给时长时，按 60 分钟估算。
+            2. 用户没给截止时间就填 null。
+            3. 用户说“这周”“周五前”这类相对时间，基于当前时间换算成具体日期。
+            4. 最多抽 5 个目标；没有明确目标就返回 {"goals":[]}。
+            5. 只输出 JSON，不要解释。
+        - role: user
+          text: '{{#sys.query#}}'
+        selected: false
+        title: 抽取规划目标
+        type: llm
+        vision:
+          enabled: false
+      height: 86
+      id: plan_extract
+      position:
+        x: 840
+        y: 760
+      positionAbsolute:
+        x: 840
+        y: 760
+      selected: false
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        code: |
+
+          import json
+          from datetime import date, datetime, timedelta
+
+          WINDOW_START = 8 * 60
+          WINDOW_END = 22 * 60
+          MAX_BLOCK = 120
+          MIN_BLOCK = 60
+          MAX_PER_DAY = 2
+
+
+          def _m(value):
+              parts = str(value or "00:00").split(":")
+              return int(parts[0]) * 60 + int(parts[1] if len(parts) > 1 else 0)
+
+
+          def _hhmm(minutes):
+              return "%02d:%02d" % (minutes // 60, minutes % 60)
+
+
+          def _busy_by_day(rows):
+              busy = {}
+              for item in rows:
+                  day = str(item.get("event_date") or "")[:10]
+                  if not day:
+                      continue
+                  busy.setdefault(day, []).append((_m(item.get("start_time")), _m(item.get("end_time"))))
+              for day in busy:
+                  busy[day].sort()
+              return busy
+
+
+          def _free(busy_list):
+              out = []
+              cursor = WINDOW_START
+              for start, end in sorted(busy_list):
+                  if start - cursor >= MIN_BLOCK:
+                      out.append((cursor, start))
+                  cursor = max(cursor, end)
+              if WINDOW_END - cursor >= MIN_BLOCK:
+                  out.append((cursor, WINDOW_END))
+              return out
+
+
+          def main(goals_json: str, body: str, now_iso: str) -> dict:
+              try:
+                  payload = json.loads(goals_json or "{}")
+              except Exception:
+                  payload = {}
+              goals = payload.get("goals") or []
+              constraints = str(payload.get("constraints") or "")
+
+              try:
+                  rows = json.loads(body or "[]")
+                  if isinstance(rows, dict):
+                      rows = rows.get("data") or []
+              except Exception:
+                  rows = []
+              if not isinstance(rows, list):
+                  rows = []
+              busy = _busy_by_day(rows)
+
+              today = date.today()
+              if now_iso:
+                  try:
+                      today = datetime.fromisoformat(now_iso).date()
+                  except Exception:
+                      pass
+
+              free_lines = []
+              for offset in range(0, 8):
+                  day = today + timedelta(days=offset)
+                  key = day.isoformat()
+                  wins = _free(busy.get(key, []))
+                  if wins:
+                      free_lines.append("%s %s" % (key, "、".join("%s-%s" % (_hhmm(a), _hhmm(b)) for a, b in wins)))
+              free_text = "\n".join(free_lines) if free_lines else "未来一周没有 1 小时以上的整块空档"
+
+              def sort_key(goal):
+                  deadline = str(goal.get("deadline") or "")[:10]
+                  prio = str(goal.get("priority") or "中")
+                  prio_rank = {"高": 0, "中": 1, "低": 2}.get(prio, 1)
+                  return (deadline or "9999-12-31", prio_rank)
+
+              goals = sorted(goals, key=sort_key)
+
+              blocks = []
+              tasks = []
+              lines_text = []
+              used_per_day = {}
+
+              for goal in goals:
+                  title = str(goal.get("title") or "").strip()
+                  if not title:
+                      continue
+                  remaining = int(goal.get("duration_min") or 60)
+                  if remaining <= 0:
+                      remaining = 60
+                  deadline = str(goal.get("deadline") or "")[:10]
+                  last_day = today + timedelta(days=7)
+                  if deadline:
+                      try:
+                          last_day = min(last_day, date.fromisoformat(deadline))
+                      except Exception:
+                          pass
+
+                  first_day = None
+                  day = today
+                  while day <= last_day and remaining > 0:
+                      key = day.isoformat()
+                      if used_per_day.get(key, 0) >= MAX_PER_DAY:
+                          day += timedelta(days=1)
+                          continue
+
+                      for start, end in _free(busy.get(key, [])):
+                          if remaining <= 0 or used_per_day.get(key, 0) >= MAX_PER_DAY:
+                              break
+                          span = end - start
+                          if span < MIN_BLOCK:
+                              continue
+                          take = min(MAX_BLOCK, span, remaining)
+                          if take < MIN_BLOCK:
+                              continue
+                          blocks.append({
+                              "user_id": "demo",
+                              "title": title,
+                              "event_date": key,
+                              "start_time": _hhmm(start),
+                              "end_time": _hhmm(start + take),
+                              "location": "",
+                              "category": "个人事项",
+                              "note": "来自智能体规划",
+                              "source": "agent",
+                              "status": "planned",
+                          })
+                          lines_text.append("%s %s-%s  %s（%d 分钟）" % (key, _hhmm(start), _hhmm(start + take), title, take))
+                          used_per_day[key] = used_per_day.get(key, 0) + 1
+                          remaining -= take
+                          if first_day is None:
+                              first_day = key
+
+                      day += timedelta(days=1)
+
+                  tasks.append({
+                      "user_id": "demo",
+                      "title": title,
+                      "done": False,
+                      "task_date": deadline or first_day or today.isoformat(),
+                  })
+
+              if not blocks:
+                  text = "没有排出时间块。"
+              else:
+                  text = "\n".join(lines_text)
+
+              return {
+                  "text": text,
+                  "free_text": free_text,
+                  "blocks_json": json.dumps(blocks, ensure_ascii=False),
+                  "tasks_json": json.dumps(tasks, ensure_ascii=False),
+                  "plan_json": json.dumps({"blocks": blocks, "tasks": tasks}, ensure_ascii=False),
+                  "count": len(blocks),
+              }
+
+        code_language: python3
+        outputs:
+          free_text:
+            children: null
+            type: string
+          blocks_json:
+            children: null
+            type: string
+          count:
+            children: null
+            type: number
+          plan_json:
+            children: null
+            type: string
+          tasks_json:
+            children: null
+            type: string
+          text:
+            children: null
+            type: string
+        selected: false
+        title: 排时间块
+        type: code
+        variables:
+        - value_selector:
+          - plan_extract
+          - text
+          variable: goals_json
+        - value_selector:
+          - window
+          - body
+          variable: body
+        - value_selector:
+          - now
+          - now
+          variable: now_iso
+      height: 50
+      id: plan_slots
+      position:
+        x: 1120
+        y: 760
+      positionAbsolute:
+        x: 1120
+        y: 760
+      selected: false
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        model:
+          completion_params:
+            temperature: 0.4
+          mode: chat
+          name: deepseek-v4-pro
+          provider: langgenius/deepseek/deepseek
+        prompt_template:
+        - role: system
+        text: |
+            你是一个可爱、贴心的校园日程小助手，正在帮助一名大学生规划未来一周的时间。
+
+            你的目标不仅是把事情塞进日历，更是帮助用户合理分配时间，让学习、生活和休息都能得到照顾。
+
+            你的表达风格：
+            1. 亲切、自然、活泼，像一个会认真帮忙的朋友。
+            2. 不要使用正式的工作报告语气。
+            3. 可以适当使用「好哒」「安排得明明白白！」等轻松表达，但不要刻意卖萌。
+            4. 建议要具体，不要只说“注意休息”“合理安排时间”之类的空话。
+            5. 尊重用户的时间和个人选择，不要擅自替用户决定所有事情。
+
+            这一周的空档（已避开已有日程）：
+            {{#plan_slots.free_text#}}
+
+            用户的目标：
+            {{#plan_extract.text#}}
+
+            已排出的时间块：
+            {{#plan_slots.text#}}
+
+            要求：
+            1. 先给一句整体判断，简单说明这一周的时间安排情况，让用户快速了解整体节奏。
+            2. 如果“已排出的时间块”不是“没有排出时间块。”：
+               - 按天列出安排，清楚展示每天要做什么、安排在什么时间。
+               - 给出 1 条有针对性的建议，可以涉及任务顺序、时间分配或休息。
+               - 最后自然地询问用户是否满意，使用这句话：“就按这个排吗？回‘可以’我就写进日程和任务；要改直接说。”
+            3. 如果没有任何时间块（用户只是在问空闲时间）：
+               - 只回答空档，按天列出哪些时段是空的。
+               - 不要再问“要不要排”，改成问“想安排什么？告诉我事情和大致时长，我来排。”
+            4. 只用上面的空档数据，不要编造可用时间。
+            5. 如果用户的目标比较多，可以温和提醒用户注意任务量，避免把时间排得过满。
+            6. 表达清晰、轻松，不要为了可爱加入无关内容。
+        - role: user
+          text: '{{#sys.query#}}'
+        selected: false
+        title: 规划建议输出
+        type: llm
+        vision:
+          enabled: false
+      height: 86
+      id: plan_reply2
+      position:
+        x: 1400
+        y: 760
+      positionAbsolute:
+        x: 1400
+        y: 760
+      selected: false
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        items:
+        - input_type: variable
+          operation: over-write
+          value:
+          - plan_slots
+          - plan_json
+          variable_selector:
+          - conversation
+          - pending_plan
+        - input_type: constant
+          operation: over-write
+          value: awaiting
+          variable_selector:
+          - conversation
+          - plan_stage
+        selected: false
+        title: 暂存待排
+        type: assigner
+        version: '2'
+      height: 82
+      id: plan_assign
+      position:
+        x: 1680
+        y: 760
+      positionAbsolute:
+        x: 1680
+        y: 760
+      selected: false
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        answer: '{{#plan_reply2.text#}}'
+        selected: false
+        title: 规划确认
+        type: answer
+      height: 90
+      id: plan_ask
+      position:
+        x: 1960
+        y: 760
+      positionAbsolute:
+        x: 1960
+        y: 760
+      selected: false
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        code: |
+
+          import json
+
+
+          def main(plan_json: str) -> dict:
+              try:
+                  data = json.loads(plan_json or "{}")
+              except Exception:
+                  data = {}
+              blocks = data.get("blocks") or []
+              tasks = data.get("tasks") or []
+              return {
+                  "sched_body": json.dumps(blocks, ensure_ascii=False),
+                  "task_body": json.dumps(tasks, ensure_ascii=False),
+                  "count": len(blocks),
+              }
+
+        code_language: python3
+        outputs:
+          count:
+            children: null
+            type: number
+          sched_body:
+            children: null
+            type: string
+          task_body:
+            children: null
+            type: string
+        selected: false
+        title: 拆分写入内容
+        type: code
+        variables:
+        - value_selector:
+          - conversation
+          - pending_plan
+          variable: plan_json
+      height: 50
+      id: plan_split
+      position:
+        x: 1120
+        y: 1000
+      positionAbsolute:
+        x: 1120
+        y: 1000
+      selected: false
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        authorization:
+          config: null
+          type: no-auth
+        body:
+          data:
+          - type: text
+            value: '{{#plan_split.sched_body#}}'
+          type: raw-text
+        headers: 'apikey: sb_publishable_KM0WOynrv6ds56zbjClqcw_aRWllsvJ
+
+          Authorization: Bearer sb_publishable_KM0WOynrv6ds56zbjClqcw_aRWllsvJ
+
+          Content-Type: application/json
+
+          Prefer: return=minimal'
+        method: post
+        params: ''
+        retry_config:
+          max_retries: 1
+          retry_enabled: false
+          retry_interval: 100
+        selected: false
+        ssl_verify: true
+        timeout:
+          max_connect_timeout: 0
+          max_read_timeout: 0
+          max_write_timeout: 0
+        title: 写入日程块
+        type: http-request
+        url: 'https://cfqneqilfjsxwbzmtjan.supabase.co/rest/v1/schedules?apikey=sb_publishable_KM0WOynrv6ds56zbjClqcw_aRWllsvJ'
+      height: 208
+      id: plan_post_sched
+      position:
+        x: 1400
+        y: 1000
+      positionAbsolute:
+        x: 1400
+        y: 1000
+      selected: false
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        authorization:
+          config: null
+          type: no-auth
+        body:
+          data:
+          - type: text
+            value: '{{#plan_split.task_body#}}'
+          type: raw-text
+        headers: 'apikey: sb_publishable_KM0WOynrv6ds56zbjClqcw_aRWllsvJ
+
+          Authorization: Bearer sb_publishable_KM0WOynrv6ds56zbjClqcw_aRWllsvJ
+
+          Content-Type: application/json
+
+          Prefer: return=minimal'
+        method: post
+        params: ''
+        retry_config:
+          max_retries: 1
+          retry_enabled: false
+          retry_interval: 100
+        selected: false
+        ssl_verify: true
+        timeout:
+          max_connect_timeout: 0
+          max_read_timeout: 0
+          max_write_timeout: 0
+        title: 写入任务
+        type: http-request
+        url: 'https://cfqneqilfjsxwbzmtjan.supabase.co/rest/v1/tasks?apikey=sb_publishable_KM0WOynrv6ds56zbjClqcw_aRWllsvJ'
+      height: 208
+      id: plan_post_task
+      position:
+        x: 1680
+        y: 1000
+      positionAbsolute:
+        x: 1680
+        y: 1000
+      selected: false
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        items:
+        - input_type: variable
+          operation: clear
+          value: ''
+          variable_selector:
+          - conversation
+          - pending_plan
+        - input_type: variable
+          operation: clear
+          value: ''
+          variable_selector:
+          - conversation
+          - plan_stage
+        selected: false
+        title: 清空规划状态
+        type: assigner
+        version: '2'
+      height: 82
+      id: plan_clear
+      position:
+        x: 1960
+        y: 1000
+      positionAbsolute:
+        x: 1960
+        y: 1000
+      selected: false
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        answer: '排好了：{{#plan_split.count#}} 个时间块已经写进日程，对应的目标也放进了任务栏。
+
+要调整直接说，比如“周六那块挪到上午”。'
+        selected: false
+        title: 规划完成
+        type: answer
+      height: 90
+      id: plan_done
+      position:
+        x: 2240
+        y: 1000
+      positionAbsolute:
+        x: 2240
+        y: 1000
+      selected: false
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        cases:
+        - case_id: 'true'
+          conditions:
+          - comparison_operator: not empty
+            id: c-has-files
+            value: ''
+            variable_selector:
+            - sys
+            - files
+          id: 'true'
+          logical_operator: and
+        selected: false
+        title: 有没有图片
+        type: if-else
+      height: 122
+      id: has_files
+      position:
+        x: 700
+        y: 560
+      positionAbsolute:
+        x: 700
+        y: 560
+      selected: false
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        model:
+          completion_params:
+            temperature: 0.1
+          mode: chat
+          name: deepseek-flash
+          provider: langgenius/deepseek/deepseek
+        prompt_template:
+        - role: system
+        text: |
+            你是一个细心的校园日程任务提取助手。你的任务是从用户消息中提取一条待办任务，并整理成简洁、明确的任务标题。
+
+            请准确理解用户想做的事情，不要额外添加用户没有提到的任务内容。
+
+            当前时间：{{#now.now#}}（{{#now.weekday#}}）
+
+            只输出 JSON：
+            {"title":"任务标题","date":"YYYY-MM-DD 或 null"}
+
+            规则：
+            1. title 用用户原话里的核心动作，去掉“帮我记个任务”这类前缀。
+            2. 没说日期就填 null。
+            3. 只输出 JSON。
+        - role: user
+          text: '{{#sys.query#}}'
+        selected: false
+        title: 抽取任务
+        type: llm
+        vision:
+          enabled: false
+      height: 86
+      id: task_extract
+      position:
+        x: 840
+        y: 1360
+      positionAbsolute:
+        x: 840
+        y: 1360
+      selected: false
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        code: |
+
+          import json
+          from datetime import date, datetime
+
+
+          def main(raw: str, now_iso: str) -> dict:
+              text = str(raw or "")
+              start, end = text.find("{"), text.rfind("}")
+              data = {}
+              if start >= 0 and end > start:
+                  try:
+                      data = json.loads(text[start:end + 1])
+                  except Exception:
+                      data = {}
+
+              title = str(data.get("title") or "").strip()
+              day = str(data.get("date") or "").strip()[:10]
+              if not day:
+                  today = date.today()
+                  if now_iso:
+                      try:
+                          today = datetime.fromisoformat(now_iso).date()
+                      except Exception:
+                          pass
+                  day = today.isoformat()
+
+              row = {"user_id": "demo", "title": title, "done": False, "task_date": day}
+              return {
+                  "row_json": json.dumps(row, ensure_ascii=False),
+                  "title": title,
+                  "date": day,
+              }
+
+        code_language: python3
+        outputs:
+          date:
+            children: null
+            type: string
+          row_json:
+            children: null
+            type: string
+          title:
+            children: null
+            type: string
+        selected: false
+        title: 构造任务行
+        type: code
+        variables:
+        - value_selector:
+          - task_extract
+          - text
+          variable: raw
+        - value_selector:
+          - now
+          - now
+          variable: now_iso
+      height: 50
+      id: task_row
+      position:
+        x: 1120
+        y: 1360
+      positionAbsolute:
+        x: 1120
+        y: 1360
+      selected: false
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        authorization:
+          config: null
+          type: no-auth
+        body:
+          data:
+          - type: text
+            value: '{{#task_row.row_json#}}'
+          type: raw-text
+        headers: 'apikey: sb_publishable_KM0WOynrv6ds56zbjClqcw_aRWllsvJ
+
+          Authorization: Bearer sb_publishable_KM0WOynrv6ds56zbjClqcw_aRWllsvJ
+
+          Content-Type: application/json
+
+          Prefer: return=minimal'
+        method: post
+        params: ''
+        retry_config:
+          max_retries: 1
+          retry_enabled: false
+          retry_interval: 100
+        selected: false
+        ssl_verify: true
+        timeout:
+          max_connect_timeout: 0
+          max_read_timeout: 0
+          max_write_timeout: 0
+        title: 写入任务栏
+        type: http-request
+        url: 'https://cfqneqilfjsxwbzmtjan.supabase.co/rest/v1/tasks?apikey=sb_publishable_KM0WOynrv6ds56zbjClqcw_aRWllsvJ'
+      height: 208
+      id: task_post
+      position:
+        x: 1400
+        y: 1360
+      positionAbsolute:
+        x: 1400
+        y: 1360
+      selected: false
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        answer: '已加到任务栏：{{#task_row.title#}}（{{#task_row.date#}}）'
+        selected: false
+        title: 任务完成
+        type: answer
+      height: 90
+      id: task_done
+      position:
+        x: 1680
+        y: 1360
+      positionAbsolute:
+        x: 1680
+        y: 1360
+      selected: false
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        authorization:
+          config: null
+          type: no-auth
+        body:
+          data:
+          - type: text
+            value: '{{#validate.tasks_json#}}'
+          type: raw-text
+        headers: 'apikey: sb_publishable_KM0WOynrv6ds56zbjClqcw_aRWllsvJ
+
+          Authorization: Bearer sb_publishable_KM0WOynrv6ds56zbjClqcw_aRWllsvJ
+
+          Content-Type: application/json
+
+          Prefer: return=minimal'
+        error_strategy: default-value
+        default_value: []
+        method: post
+        params: ''
+        retry_config:
+          max_retries: 1
+          retry_enabled: false
+          retry_interval: 100
+        selected: false
+        ssl_verify: true
+        timeout:
+          max_connect_timeout: 0
+          max_read_timeout: 0
+          max_write_timeout: 0
+        title: 写入任务栏
+        type: http-request
+        url: 'https://cfqneqilfjsxwbzmtjan.supabase.co/rest/v1/tasks?apikey=sb_publishable_KM0WOynrv6ds56zbjClqcw_aRWllsvJ'
+      height: 208
+      id: post_tasks
+      position:
+        x: 2260
+        y: 120
+      positionAbsolute:
+        x: 2260
+        y: 120
+      selected: false
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        answer: '{{#query_reply.text#}}'
+        selected: false
+        title: 回复安排
+        type: answer
+      height: 90
+      id: query_answer
+      position:
+        x: 1960
+        y: 760
+      positionAbsolute:
+        x: 1960
+        y: 760
+      selected: false
+      type: custom
+      width: 241
+      zIndex: 0
+    viewport:
+      x: -230.53097245977867
+      y: 372.138125763576
+      zoom: 0.6803949806528533
+  rag_pipeline_variables: []

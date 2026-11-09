@@ -1,0 +1,837 @@
+app:
+  description: 面向大学生的校园日程智能体：录入、冲突检查、查询、复盘。
+  icon: 🗓️
+  icon_background: '#E0F2FE'
+  mode: advanced-chat
+  name: 校园日程智能体
+  use_icon_as_answer_icon: false
+dependencies: []
+kind: app
+version: 0.1.5
+workflow:
+  conversation_variables:
+    - description: 正在补全的日程（数据库行 JSON）
+      id: var-draft
+      name: draft
+      selector: [conversation, draft]
+      value: ''
+      value_type: string
+    - description: 等待用户确认的日程（数据库行 JSON）
+      id: var-pending
+      name: pending_event
+      selector: [conversation, pending_event]
+      value: ''
+      value_type: string
+    - description: 复盘上下文（日期范围）
+      id: var-review
+      name: review_range
+      selector: [conversation, review_range]
+      value: ''
+      value_type: string
+  environment_variables:
+    - description: 网站接口根地址，导入后必须改
+      id: env-base
+      name: BASE_URL
+      selector: [env, BASE_URL]
+      value: https://your-site.example.com
+      value_type: string
+    - description: 用户标识，单用户演示固定 demo
+      id: env-user
+      name: USER_ID
+      selector: [env, USER_ID]
+      value: demo
+      value_type: string
+  features:
+    file_upload:
+      allowed_file_extensions: []
+      allowed_file_types: []
+      allowed_file_upload_methods: []
+      enabled: false
+      number_limits: 3
+    opening_statement: 你好，我是校园日程助手。可以直接粘贴校园通知，或说“明天下午三点和导师开会”。
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: false
+    speech_to_text:
+      enabled: false
+    suggested_questions:
+      - 明天下午三点和导师开会，教三201
+      - 我这周三有什么安排
+      - 帮我复盘一下这周
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+      - id: e-start-now
+        source: start
+        target: now
+        sourceHandle: source
+        targetHandle: target
+        type: custom
+        data: {sourceType: start, targetType: code}
+      - id: e-now-intent
+        source: now
+        target: intent
+        sourceHandle: source
+        targetHandle: target
+        type: custom
+        data: {sourceType: code, targetType: llm}
+      - id: e-intent-parse
+        source: intent
+        target: intent_parse
+        sourceHandle: source
+        targetHandle: target
+        type: custom
+        data: {sourceType: llm, targetType: code}
+      - id: e-parse-branch
+        source: intent_parse
+        target: branch
+        sourceHandle: source
+        targetHandle: target
+        type: custom
+        data: {sourceType: code, targetType: if-else}
+      - id: e-branch-add
+        source: branch
+        target: extract
+        sourceHandle: add
+        targetHandle: target
+        type: custom
+        data: {sourceType: if-else, targetType: llm}
+      - id: e-branch-confirm
+        source: branch
+        target: post
+        sourceHandle: confirm
+        targetHandle: target
+        type: custom
+        data: {sourceType: if-else, targetType: http-request}
+      - id: e-branch-query
+        source: branch
+        target: get_range_query
+        sourceHandle: query
+        targetHandle: target
+        type: custom
+        data: {sourceType: if-else, targetType: http-request}
+      - id: e-branch-review
+        source: branch
+        target: get_range_review
+        sourceHandle: review
+        targetHandle: target
+        type: custom
+        data: {sourceType: if-else, targetType: http-request}
+      - id: e-branch-other
+        source: branch
+        target: other
+        sourceHandle: 'false'
+        targetHandle: target
+        type: custom
+        data: {sourceType: if-else, targetType: answer}
+      - id: e-extract-validate
+        source: extract
+        target: validate
+        sourceHandle: source
+        targetHandle: target
+        type: custom
+        data: {sourceType: llm, targetType: code}
+      - id: e-validate-ready
+        source: validate
+        target: ready
+        sourceHandle: source
+        targetHandle: target
+        type: custom
+        data: {sourceType: code, targetType: if-else}
+      - id: e-ready-no
+        source: ready
+        target: set_ask
+        sourceHandle: 'false'
+        targetHandle: target
+        type: custom
+        data: {sourceType: if-else, targetType: assigner}
+      - id: e-set-ask
+        source: set_ask
+        target: ask
+        sourceHandle: source
+        targetHandle: target
+        type: custom
+        data: {sourceType: assigner, targetType: answer}
+      - id: e-ready-yes
+        source: ready
+        target: get_day
+        sourceHandle: 'true'
+        targetHandle: target
+        type: custom
+        data: {sourceType: if-else, targetType: http-request}
+      - id: e-day-conflict
+        source: get_day
+        target: conflict
+        sourceHandle: source
+        targetHandle: target
+        type: custom
+        data: {sourceType: http-request, targetType: code}
+      - id: e-conflict-branch
+        source: conflict
+        target: conflict_branch
+        sourceHandle: source
+        targetHandle: target
+        type: custom
+        data: {sourceType: code, targetType: if-else}
+      - id: e-conflict-yes
+        source: conflict_branch
+        target: set_conflict
+        sourceHandle: 'true'
+        targetHandle: target
+        type: custom
+        data: {sourceType: if-else, targetType: assigner}
+      - id: e-set-conflict
+        source: set_conflict
+        target: conflict_reply
+        sourceHandle: source
+        targetHandle: target
+        type: custom
+        data: {sourceType: assigner, targetType: answer}
+      - id: e-conflict-no
+        source: conflict_branch
+        target: set_confirm
+        sourceHandle: 'false'
+        targetHandle: target
+        type: custom
+        data: {sourceType: if-else, targetType: assigner}
+      - id: e-set-confirm
+        source: set_confirm
+        target: confirm_reply
+        sourceHandle: source
+        targetHandle: target
+        type: custom
+        data: {sourceType: assigner, targetType: answer}
+      - id: e-post-saved
+        source: post
+        target: set_saved
+        sourceHandle: source
+        targetHandle: target
+        type: custom
+        data: {sourceType: http-request, targetType: assigner}
+      - id: e-set-saved
+        source: set_saved
+        target: saved
+        sourceHandle: source
+        targetHandle: target
+        type: custom
+        data: {sourceType: assigner, targetType: answer}
+      - id: e-query-reply
+        source: get_range_query
+        target: query_reply
+        sourceHandle: source
+        targetHandle: target
+        type: custom
+        data: {sourceType: http-request, targetType: llm}
+      - id: e-review-reply
+        source: get_range_review
+        target: review_reply
+        sourceHandle: source
+        targetHandle: target
+        type: custom
+        data: {sourceType: http-request, targetType: llm}
+    nodes:
+      - id: start
+        type: custom
+        data:
+          type: start
+          title: 开始
+          variables: []
+        position: {x: 0, y: 320}
+      - id: now
+        type: custom
+        data:
+          type: code
+          title: 当前时间
+          code_language: python3
+          variables: []
+          outputs:
+            now: {type: string, children: null}
+            today: {type: string, children: null}
+            weekday: {type: string, children: null}
+          code: |
+            from datetime import datetime, timezone, timedelta
+
+            def main() -> dict:
+                tz = timezone(timedelta(hours=8))
+                n = datetime.now(tz)
+                return {
+                    "now": n.isoformat(),
+                    "today": n.strftime("%Y-%m-%d"),
+                    "weekday": "周" + "一二三四五六日"[n.weekday()],
+                }
+        position: {x: 280, y: 320}
+      - id: intent
+        type: custom
+        data:
+          type: llm
+          title: 意图识别
+          model:
+            provider: deepseek
+            name: deepseek-chat
+            mode: chat
+            completion_params: {temperature: 0.1}
+          context: {enabled: false, variable_selector: []}
+          vision: {enabled: false}
+          prompt_template:
+            - role: system
+              text: |
+                你是校园日程助手的意图识别器。只输出一个 JSON，不要解释：
+                {"intent":"add|confirm|query|review|other","start_date":"YYYY-MM-DD 或 null","end_date":"YYYY-MM-DD 或 null"}
+
+                判定规则：
+                - 用户在描述一个活动、粘贴通知 → add
+                - 用户说“确认 / 保存 / 可以 / 就这样” → confirm
+                - 用户问某天或某周有什么安排 → query，并填 start_date/end_date
+                - 用户要求复盘、回顾完成情况 → review，并填 start_date/end_date
+                - 其他 → other
+
+                当前时间：{{#now.now#}}（{{#now.weekday#}}）
+                只输出 JSON。
+            - role: user
+              text: '{{#sys.query#}}'
+        position: {x: 560, y: 320}
+      - id: intent_parse
+        type: custom
+        data:
+          type: code
+          title: 解析意图
+          code_language: python3
+          variables:
+            - variable: raw
+              value_selector: [intent, text]
+          outputs:
+            intent: {type: string, children: null}
+            start_date: {type: string, children: null}
+            end_date: {type: string, children: null}
+          code: |
+            import json
+            import re
+
+            def main(raw: str) -> dict:
+                text = str(raw or "")
+                start, end = text.find("{"), text.rfind("}")
+                data = {}
+                if start >= 0 and end > start:
+                    try:
+                        data = json.loads(text[start:end + 1])
+                    except Exception:
+                        data = {}
+                intent = str(data.get("intent") or "").strip().lower()
+                if intent not in ("add", "confirm", "query", "review"):
+                    intent = "other"
+                return {
+                    "intent": intent,
+                    "start_date": data.get("start_date") or "",
+                    "end_date": data.get("end_date") or "",
+                }
+        position: {x: 840, y: 320}
+      - id: branch
+        type: custom
+        data:
+          type: if-else
+          title: 意图分支
+          cases:
+            - case_id: add
+              id: add
+              logical_operator: and
+              conditions:
+                - id: c-add
+                  comparison_operator: is
+                  value: add
+                  variable_selector: [intent_parse, intent]
+            - case_id: confirm
+              id: confirm
+              logical_operator: and
+              conditions:
+                - id: c-confirm
+                  comparison_operator: is
+                  value: confirm
+                  variable_selector: [intent_parse, intent]
+            - case_id: query
+              id: query
+              logical_operator: and
+              conditions:
+                - id: c-query
+                  comparison_operator: is
+                  value: query
+                  variable_selector: [intent_parse, intent]
+            - case_id: review
+              id: review
+              logical_operator: and
+              conditions:
+                - id: c-review
+                  comparison_operator: is
+                  value: review
+                  variable_selector: [intent_parse, intent]
+        position: {x: 1120, y: 320}
+      - id: extract
+        type: custom
+        data:
+          type: llm
+          title: 抽取日程
+          model:
+            provider: deepseek
+            name: deepseek-chat
+            mode: chat
+            completion_params: {temperature: 0.1}
+          context: {enabled: false, variable_selector: []}
+          vision: {enabled: false}
+          prompt_template:
+            - role: system
+              text: |
+                你是校园日程录入助手。从用户消息中抽取字段，并与已有草稿合并。
+
+                当前时间：{{#now.now#}}（{{#now.weekday#}}）
+                已有草稿（可能是空字符串）：{{#conversation.draft#}}
+
+                只输出 JSON：
+                {"title":"活动名称或 null","date":"YYYY-MM-DD 或 null","start_time":"HH:MM 或 null","end_time":"HH:MM 或 null","location":"地点或 null","category":"课程|会议|社团|讲座|比赛|个人事项|其他"}
+
+                规则：
+                1. 用户没说的字段一律 null，禁止推测，禁止用常识补全。
+                2. 相对日期基于当前时间换算；“周三”取不早于今天的最近周三。
+                3. “下午三点”按 15:00；只说“三点”判断不了上下午时，start_time 填 null。
+                4. 草稿里已有的字段，除非用户本轮明确修改，否则保留。
+                5. 用户说“取消/算了”时输出 {"cancelled": true}。
+                6. 只输出 JSON，不要 Markdown，不要解释。
+            - role: user
+              text: '{{#sys.query#}}'
+        position: {x: 1400, y: 120}
+      - id: validate
+        type: custom
+        data:
+          type: code
+          title: 校验归一化
+          code_language: python3
+          variables:
+            - variable: extracted_json
+              value_selector: [extract, text]
+            - variable: now_iso
+              value_selector: [now, now]
+          outputs:
+            ok: {type: boolean, children: null}
+            missing_text: {type: string, children: null}
+            summary: {type: string, children: null}
+            date: {type: string, children: null}
+            event_json: {type: string, children: null}
+            row_json: {type: string, children: null}
+          code: |
+            import json
+            import re
+            from datetime import date, datetime, timedelta
+
+            REQUIRED = ("title", "date", "start_time", "end_time", "location")
+            LABELS = {
+                "title": "活动名称", "date": "日期",
+                "start_time": "开始时间", "end_time": "结束时间", "location": "地点",
+            }
+
+            def _date(value, today):
+                if not value:
+                    return None
+                s = str(value).strip()
+                if s in ("今天", "今日"):
+                    return today
+                if s in ("明天", "明日"):
+                    return today + timedelta(days=1)
+                if s == "后天":
+                    return today + timedelta(days=2)
+                m = re.fullmatch(r"(\d{4})-(\d{1,2})-(\d{1,2})", s)
+                if m:
+                    return date(int(m[1]), int(m[2]), int(m[3]))
+                m = re.fullmatch(r"(下)?周([一二三四五六日天])", s)
+                if m:
+                    key = "一二三四五六日"
+                    idx = 6 if m[2] == "天" else key.find(m[2])
+                    week_start = today - timedelta(days=today.weekday())
+                    target = week_start + timedelta(days=idx, weeks=1 if m[1] else 0)
+                    if not m[1] and target < today:
+                        target += timedelta(days=7)
+                    return target
+                return None
+
+            def _time(value):
+                if not value:
+                    return None
+                s = str(value).strip().replace("：", ":")
+                m = re.fullmatch(r"(\d{1,2}):(\d{2})", s)
+                if not m:
+                    return None
+                return "%02d:%02d" % (int(m[1]), int(m[2]))
+
+            def main(extracted_json: str, now_iso: str) -> dict:
+                raw_text = str(extracted_json or "")
+                text = re.sub(r"<think.*?</think>", "", raw_text, flags=re.S)
+                start, end = text.find("{"), text.rfind("}")
+                if start >= 0 and end > start:
+                    text = text[start:end + 1]
+                try:
+                    data = json.loads(text)
+                except Exception:
+                    data = {}
+
+                today = date.today()
+                if now_iso:
+                    try:
+                        today = datetime.fromisoformat(now_iso).date()
+                    except Exception:
+                        pass
+
+                event = {}
+                title = str(data.get("title") or "").strip()
+                if title:
+                    event["title"] = title
+                d = _date(data.get("date"), today)
+                if d:
+                    event["date"] = d.isoformat()
+                st = _time(data.get("start_time"))
+                if st:
+                    event["start_time"] = st
+                et = _time(data.get("end_time"))
+                if et:
+                    event["end_time"] = et
+                loc = str(data.get("location") or "").strip()
+                if loc and loc not in ("待定", "未定", "线上"):
+                    event["location"] = loc
+                event["category"] = str(data.get("category") or "其他").strip() or "其他"
+
+                missing = [f for f in REQUIRED if not event.get(f)]
+                missing_text = "、".join(LABELS[f] for f in missing)
+                summary = "%s｜%s %s-%s｜%s" % (
+                    event.get("title", "未命名"),
+                    event.get("date", "日期待定"),
+                    event.get("start_time", "?"),
+                    event.get("end_time", "?"),
+                    event.get("location", "地点待定"),
+                )
+                row = {
+                    "user_id": "demo",
+                    "title": event.get("title", ""),
+                    "event_date": event.get("date"),
+                    "start_time": event.get("start_time"),
+                    "end_time": event.get("end_time"),
+                    "location": event.get("location", ""),
+                    "category": event.get("category", "其他"),
+                    "note": "",
+                    "source": "agent",
+                    "status": "planned",
+                }
+                return {
+                    "ok": not missing,
+                    "missing_text": missing_text,
+                    "summary": summary,
+                    "date": event.get("date") or "",
+                    "event_json": json.dumps(event, ensure_ascii=False),
+                    "row_json": json.dumps(row, ensure_ascii=False),
+                }
+        position: {x: 1680, y: 120}
+      - id: ready
+        type: custom
+        data:
+          type: if-else
+          title: 信息是否齐全
+          cases:
+            - case_id: 'true'
+              id: 'true'
+              logical_operator: and
+              conditions:
+                - id: c-ok
+                  comparison_operator: is
+                  value: 'true'
+                  variable_selector: [validate, ok]
+        position: {x: 1960, y: 120}
+      - id: set_ask
+        type: custom
+        data:
+          type: assigner
+          title: 暂存草稿
+          version: '2'
+          items:
+            - variable_selector: [conversation, draft]
+              input_type: variable
+              operation: over-write
+              value_selector: [validate, row_json]
+        position: {x: 2240, y: 320}
+      - id: ask
+        type: custom
+        data:
+          type: answer
+          title: 追问缺失信息
+          answer: |
+            这条日程还差：{{#validate.missing_text#}}。
+            麻烦补齐一下，比如“结束时间 16:00”或“地点教三201”。
+        position: {x: 2520, y: 320}
+      - id: get_day
+        type: custom
+        data:
+          type: http-request
+          title: 读取当天日程
+          method: get
+          url: '{{#env.BASE_URL#}}/api/schedules?user_id={{#env.USER_ID#}}&start_date={{#validate.date#}}&end_date={{#validate.date#}}'
+          authorization: {type: no-auth, config: null}
+          headers: ''
+          params: ''
+          body: {type: none, data: []}
+          retry_config: {retry_enabled: true, max_retries: 2, retry_interval: 100}
+          ssl_verify: true
+          timeout: {max_connect_timeout: 0, max_read_timeout: 0, max_write_timeout: 0}
+        position: {x: 2240, y: -80}
+      - id: conflict
+        type: custom
+        data:
+          type: code
+          title: 冲突检测
+          code_language: python3
+          variables:
+            - variable: new_row
+              value_selector: [validate, row_json]
+            - variable: existing
+              value_selector: [get_day, body]
+          outputs:
+            has_conflict: {type: boolean, children: null}
+            message: {type: string, children: null}
+          code: |
+            import json
+
+            def _minutes(value):
+                parts = str(value or "00:00").split(":")
+                return int(parts[0]) * 60 + int(parts[1] if len(parts) > 1 else 0)
+
+            def main(new_row: str, existing: str) -> dict:
+                try:
+                    new = json.loads(new_row or "{}")
+                except Exception:
+                    new = {}
+                try:
+                    items = json.loads(existing or "[]")
+                    if isinstance(items, dict):
+                        items = items.get("data") or items.get("rows") or []
+                except Exception:
+                    items = []
+                if not isinstance(items, list):
+                    items = []
+
+                target = str(new.get("event_date") or "")[:10]
+                ns = _minutes(new.get("start_time"))
+                ne = _minutes(new.get("end_time"))
+                hits = []
+                for item in items:
+                    if str(item.get("event_date") or item.get("date") or "")[:10] != target:
+                        continue
+                    start = _minutes(item.get("start_time") or item.get("start"))
+                    end = _minutes(item.get("end_time") or item.get("end"))
+                    if ns < end and start < ne:
+                        hits.append("%s（%02d:%02d-%02d:%02d）" % (
+                            item.get("title", "未命名"), start // 60, start % 60, end // 60, end % 60))
+                if hits:
+                    return {"has_conflict": True, "message": "与以下日程冲突：" + "；".join(hits)}
+                return {"has_conflict": False, "message": "当天没有冲突。"}
+        position: {x: 2520, y: -80}
+      - id: conflict_branch
+        type: custom
+        data:
+          type: if-else
+          title: 是否冲突
+          cases:
+            - case_id: 'true'
+              id: 'true'
+              logical_operator: and
+              conditions:
+                - id: c-conf
+                  comparison_operator: is
+                  value: 'true'
+                  variable_selector: [conflict, has_conflict]
+        position: {x: 2800, y: -80}
+      - id: set_conflict
+        type: custom
+        data:
+          type: assigner
+          title: 暂存待调整
+          version: '2'
+          items:
+            - variable_selector: [conversation, draft]
+              input_type: variable
+              operation: over-write
+              value_selector: [validate, row_json]
+        position: {x: 3080, y: -200}
+      - id: conflict_reply
+        type: custom
+        data:
+          type: answer
+          title: 冲突说明与建议
+          answer: |
+            {{#conflict.message#}}
+
+            新日程：{{#validate.summary#}}
+            你可以改个时间，或换个日期，告诉我怎么调整。
+        position: {x: 3360, y: -200}
+      - id: set_confirm
+        type: custom
+        data:
+          type: assigner
+          title: 暂存待确认
+          version: '2'
+          items:
+            - variable_selector: [conversation, draft]
+              input_type: variable
+              operation: over-write
+              value_selector: [validate, row_json]
+        position: {x: 3080, y: 40}
+      - id: confirm_reply
+        type: custom
+        data:
+          type: answer
+          title: 复述并请求确认
+          answer: |
+            帮你记下来：
+
+            {{#validate.summary#}}
+
+            确认保存吗？回复“确认”即可，也可以直接说修改内容。
+        position: {x: 3360, y: 40}
+      - id: post
+        type: custom
+        data:
+          type: http-request
+          title: 保存日程
+          method: post
+          url: '{{#env.BASE_URL#}}/api/schedules'
+          authorization: {type: no-auth, config: null}
+          headers: 'Content-Type:application/json'
+          params: ''
+          body:
+            type: raw-text
+            data:
+              - type: text
+                value: '{{#conversation.draft#}}'
+          retry_config: {retry_enabled: false, max_retries: 1, retry_interval: 100}
+          ssl_verify: true
+          timeout: {max_connect_timeout: 0, max_read_timeout: 0, max_write_timeout: 0}
+        position: {x: 1400, y: 560}
+      - id: set_saved
+        type: custom
+        data:
+          type: assigner
+          title: 清空草稿
+          version: '2'
+          items:
+            - variable_selector: [conversation, draft]
+              input_type: variable
+              operation: clear
+              value: ''
+        position: {x: 1680, y: 560}
+      - id: saved
+        type: custom
+        data:
+          type: answer
+          title: 保存成功
+          answer: |
+            已保存：{{#validate.summary#}}
+            需要的话，我可以帮你看看当天其他安排。
+        position: {x: 1960, y: 560}
+      - id: get_range_query
+        type: custom
+        data:
+          type: http-request
+          title: 查询日期范围
+          method: get
+          url: '{{#env.BASE_URL#}}/api/schedules?user_id={{#env.USER_ID#}}&start_date={{#intent_parse.start_date#}}&end_date={{#intent_parse.end_date#}}'
+          authorization: {type: no-auth, config: null}
+          headers: ''
+          params: ''
+          body: {type: none, data: []}
+          retry_config: {retry_enabled: true, max_retries: 2, retry_interval: 100}
+          ssl_verify: true
+          timeout: {max_connect_timeout: 0, max_read_timeout: 0, max_write_timeout: 0}
+        position: {x: 1400, y: 760}
+      - id: query_reply
+        type: custom
+        data:
+          type: llm
+          title: 生成安排说明
+          model:
+            provider: deepseek
+            name: deepseek-chat
+            mode: chat
+            completion_params: {temperature: 0.2}
+          context: {enabled: false, variable_selector: []}
+          vision: {enabled: false}
+          prompt_template:
+            - role: system
+              text: |
+                你是校园日程助手。根据接口返回的日程，回答用户。
+
+                接口数据：
+                {{#get_range_query.body#}}
+
+                要求：
+                1. 只使用上面的数据，不得编造日程。
+                2. 按日期、开始时间排序，用列表输出，每条写“日期 时间 标题 地点”。
+                3. 数据为空时，直接说这段时间没有安排。
+                4. 不要输出 JSON，用自然中文，简洁。
+            - role: user
+              text: '{{#sys.query#}}'
+        position: {x: 1680, y: 760}
+      - id: get_range_review
+        type: custom
+        data:
+          type: http-request
+          title: 读取复盘范围
+          method: get
+          url: '{{#env.BASE_URL#}}/api/schedules?user_id={{#env.USER_ID#}}&start_date={{#intent_parse.start_date#}}&end_date={{#intent_parse.end_date#}}'
+          authorization: {type: no-auth, config: null}
+          headers: ''
+          params: ''
+          body: {type: none, data: []}
+          retry_config: {retry_enabled: true, max_retries: 2, retry_interval: 100}
+          ssl_verify: true
+          timeout: {max_connect_timeout: 0, max_read_timeout: 0, max_write_timeout: 0}
+        position: {x: 1400, y: 960}
+      - id: review_reply
+        type: custom
+        data:
+          type: llm
+          title: 生成复盘清单
+          model:
+            provider: deepseek
+            name: deepseek-chat
+            mode: chat
+            completion_params: {temperature: 0.2}
+          context: {enabled: false, variable_selector: []}
+          vision: {enabled: false}
+          prompt_template:
+            - role: system
+              text: |
+                你是校园日程助手，正在做日程复盘。
+
+                原计划数据：
+                {{#get_range_review.body#}}
+
+                要求：
+                1. 只列出数据里的日程，不要编造。
+                2. 每条编号，逐条询问用户：已完成 / 未完成 / 已调整，以及原因（可选）。
+                3. 明确说明：在用户给出反馈前，不会判断任何一条是否完成。
+                4. 数据为空时，直接说这段时间没有可复盘的日程。
+                5. 用自然中文，不超过 120 字。
+            - role: user
+              text: '{{#sys.query#}}'
+        position: {x: 1680, y: 960}
+      - id: other
+        type: custom
+        data:
+          type: answer
+          title: 其他问题
+          answer: |
+            我是校园日程助手，可以帮你：
+            1. 录入日程（粘贴通知或直接说）
+            2. 查某天/某周安排
+            3. 做日程复盘
+
+            你想做哪一件？
+        position: {x: 1400, y: -280}
